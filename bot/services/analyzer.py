@@ -111,7 +111,7 @@ class Analyzer:
         # 1. Extract extraction thicknesses
         actual_thicknesses = [e["thickness"] for e in formula_elements]
         if not actual_thicknesses:
-            return ["Empty formula elements"]
+            return ["Пустая формула"]
 
         # 2. Calculate Cam Count
         # We need the original formula string for this, usually. 
@@ -139,7 +139,7 @@ class Analyzer:
         rule = result.scalars().first()
         
         if not rule:
-            return [f"No slip rule found for size {w_round}x{h_round}"]
+            return [f"Не найдено правило слипания для размера {w_round}x{h_round}"]
 
         # 4. Select Formulas based on Cam Count
         f1_text = None
@@ -159,7 +159,7 @@ class Analyzer:
             f2_text = rule.formula_2_3k
         
         if not f1_text and not f2_text:
-             return [f"No formulas found for {cam_count} chambers in rule {w_round}x{h_round}"]
+             return [f"Не найдены допустимые формулы для {cam_count}-камерного пакета в правиле {w_round}x{h_round}"]
 
         valid_options = []
         if f1_text: valid_options.append(self._parse_rule_string(f1_text))
@@ -170,9 +170,60 @@ class Analyzer:
             if actual_thicknesses == opt:
                 match_found = True
                 break
-                
+        
         if not match_found:
-             msg = f"Mismatch! Actual: {actual_thicknesses}. Expected: {valid_options}"
+             # Generate specific mismatch details avoiding "Mismatch!" title if possible, or make it descriptive
+             # We compare against the first valid option as primary reference, 
+             # but we should mention if there are others.
+             primary_opt = valid_options[0]
+             
+             details = []
+             # Check lengths first (should match given cam_count logic, but safety first)
+             limit = min(len(actual_thicknesses), len(primary_opt))
+             
+             for i in range(limit):
+                 act = actual_thicknesses[i]
+                 exp = primary_opt[i]
+                 
+                 if act != exp:
+                     # Determine element name
+                     el_type = formula_elements[i]['type']
+                     # Count index of this type
+                     cnt = sum(1 for x in formula_elements[:i+1] if x['type'] == el_type)
+                     
+                     if el_type == 'glass':
+                         type_name = "стекло"
+                         # Simple declension for 1..10
+                         suffix = "-е"
+                         if cnt == 3: suffix = "-е" # 3-е
+                         # actually generic "-е" fits most neuter (стекло), except maybe numbers? 
+                         # 1-е, 2-е, 3-е, 4-е... fits well.
+                         name_str = f"{cnt}{suffix} {type_name}"
+                     else:
+                         type_name = "рамка"
+                         # feminine (рамка)
+                         # 1-я, 2-я, 3-я...
+                         suffix = "-я"
+                         if cnt == 3: suffix = "-я" 
+                         name_str = f"{cnt}{suffix} {type_name}"
+                     
+                     details.append(f"{name_str}: {act} мм (в заказе) ≠ {exp} мм (норма)")
+             
+             # Construct message
+             msg = "Обнаружено несоответствие:\n"
+             if details:
+                 msg += "\n".join([f"❌ {d}" for d in details]) + "\n"
+             
+             msg += f"\nФормула из заказа: {actual_thicknesses}"
+             msg += f"\nФормула по таблице слипаемости: {primary_opt}"
+             
+             if len(valid_options) > 1:
+                 # If multiple valid options exist, we might be comparing against the wrong one 
+                 # if the user intended the other. But usually they are close.
+                 # Let's list others briefly.
+                 others = ", ".join([str(o) for o in valid_options[1:]])
+                 msg += f" (или: {others})"
+
              errors.append(msg)
 
         return errors
