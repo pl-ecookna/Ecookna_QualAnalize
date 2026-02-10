@@ -144,7 +144,7 @@
     },
     {
       "parameters": {
-        "jsCode": "/**\n * Парсит текст и возвращает items в формате колонок qual_analize_pos.\n */\n\nconst mainItem = items[0];\nconst text = String(mainItem?.json?.text ?? \"\");\n\n// Номер: допускаем пробелы/переносы внутри (после дефиса часто бывает перенос)\nconst ITEM_RE =\n  /(\\d{2}-\\d{3}-\\s*\\d{4}\\/\\d+\\/\\d+)\\s+([\\s\\S]*?)\\s*\\((\\d+)\\)\\s*мм\\s+(\\d+)\\s*[x×]\\s*(\\d+)\\s+(\\d+)\\s+([\\d.,]+)\\s+([\\d.,]+)/gi;\n\nconst LAYOUT_RE = /Раскладка\\s+([^\\r\\n]+)/i;\n\n// PARSE\nconst blocks = text.split(/Итого по изделию:/i);\nconst outputItems = [];\n\nfor (const block of blocks) {\n  const r = block.match(LAYOUT_RE);\n  const layout = r ? r[1].trim() : null;\n\n  ITEM_RE.lastIndex = 0;\n  let m;\n\n  while ((m = ITEM_RE.exec(block)) !== null) {\n    // номер может быть \"18-102-\\n1002/1/5\" — склеиваем\n    const номер = String(m[1]).replace(/\\s+/g, \"\").trim();\n\n    // формула может быть многострочной/с пробелами — прибираем лишние переносы\n    const формула = String(m[2]).replace(/\\s+/g, \" \").trim();\n\n    const толщина_мм = parseInt(m[3], 10);\n\n    const ширина = parseInt(m[4], 10);\n    const высота = parseInt(m[5], 10);\n\n    const количество = parseInt(m[6], 10);\n    const площадь = parseFloat(String(m[7]).replace(\",\", \".\"));\n    const масса = parseFloat(String(m[8]).replace(\",\", \".\"));\n\n    outputItems.push({\n      position_num: номер,\n      position_formula: формула,\n      position_raskl: layout ?? \"отсутствует\",\n      position_width: Number.isFinite(ширина) ? ширина : null,\n      position_hight: Number.isFinite(высота) ? высота : null,\n      position_count: Number.isFinite(количество) ? количество : null,\n      position_area: Number.isFinite(площадь) ? площадь : null,\n      position_mass: Number.isFinite(масса) ? масса : null,\n      // толщина_мм если надо сохранять — добавь колонку/поле\n      // position_thickness: Number.isFinite(толщина_мм) ? толщина_мм : null,\n    });\n  }\n}\n\nreturn outputItems.map((i) => ({ json: i }));"
+        "jsCode": "/**\n * Парсит текст и возвращает items\n * в формате колонок qual_analize_pos.\n */\n\nconst mainItem = items[0];\nconst text = String(mainItem?.json?.text ?? \"\");\n\n// Номер: допускаем пробелы/переносы внутри\nconst ITEM_RE =\n  /(\\d{2}-\\d{3}-\\s*\\d{4}\\/\\d+\\/\\d+(?:[\\/\\w-]*))\\s+([\\s\\S]*?)\\s*\\(\\s*(\\d+)(?:\\s*мм)?\\s*\\)(?:\\s*мм)?\\s+(\\d+)\\s*[x×хХ]\\s*(\\d+)\\s+(\\d+)\\s+([\\d.,]+)\\s+([\\d.,]+)/gi;\n\nconst LAYOUT_RE = /Раскладка\\s+([^\\r\\n]+)/i;\n\n// PARSE\nconst blocks = text.split(/Итого по изделию:/i);\nconst outputItems = [];\n\nfor (const block of blocks) {\n  const r = block.match(LAYOUT_RE);\n  const layout = r ? r[1].trim() : null;\n\n  ITEM_RE.lastIndex = 0;\n  let m;\n\n  while ((m = ITEM_RE.exec(block)) !== null) {\n    const номер = String(m[1]).replace(/\\s+/g, \"\").trim();\n    \n    // Сырая формула (может содержать \"Вид СНАРУЖИ\" и т.д.)\n    const rawFormula = String(m[2]).replace(/\\s+/g, \" \").trim();\n\n    const толщина_мм = parseInt(m[3], 10);\n    const ширина = parseInt(m[4], 10);\n    const высота = parseInt(m[5], 10);\n    const количество = parseInt(m[6], 10);\n    const площадь = parseFloat(String(m[7]).replace(\",\", \".\"));\n    const масса = parseFloat(String(m[8]).replace(\",\", \".\"));\n\n    // ---- is_outside (проверяем по сырой строке) ----\n    const formulaUpper = rawFormula.toUpperCase();\n\n    const is_outside =\n      formulaUpper.includes(\"СНАРУЖИ\") ||\n      formulaUpper.includes(\"НАРУЖУ\") ||\n      /FS$/i.test(rawFormula);\n      \n    // ---- Нормализация формулы (берем всё после последнего пробела) ----\n    // Если пробелов нет, split вернёт массив из 1 элемента, pop() вернёт его же.\n    const cleanFormula = rawFormula.split(\" \").pop();\n\n    outputItems.push({\n      position_num: номер,\n      position_formula: cleanFormula,\n      position_raskl: layout ?? \"отсутствует\",\n      position_width: Number.isFinite(ширина) ? ширина : null,\n      position_hight: Number.isFinite(высота) ? высота : null,\n      position_count: Number.isFinite(количество) ? количество : null,\n      position_area: Number.isFinite(площадь) ? площадь : null,\n      position_mass: Number.isFinite(масса) ? масса : null,\n      is_outside,\n\n      // если понадобится\n      // position_thickness: Number.isFinite(толщина_мм) ? толщина_мм : null,\n    });\n  }\n}\n\nreturn outputItems.map((i) => ({ json: i }));"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -410,7 +410,9 @@
             "date_created": "={{ $now }}",
             "position_num": "={{ $json.position_num }}",
             "position_formula": "={{ $json.position_formula }}",
-            "position_raskl": "={{ $json.position_raskl }}"
+            "position_raskl": "={{ $json.position_raskl }}",
+            "updated_at": "={{ $now }}",
+            "is_oytside": "={{ $json.is_outside }}"
           },
           "matchingColumns": [
             "id"
@@ -547,26 +549,6 @@
               "removed": true
             },
             {
-              "id": "is_error",
-              "displayName": "is_error",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "boolean",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "error_text",
-              "displayName": "error_text",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
               "id": "article_json",
               "displayName": "article_json",
               "required": false,
@@ -625,6 +607,26 @@
               "type": "string",
               "canBeUsedToMatch": true,
               "removed": true
+            },
+            {
+              "id": "updated_at",
+              "displayName": "updated_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "is_oytside",
+              "displayName": "is_oytside",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "boolean",
+              "canBeUsedToMatch": true,
+              "removed": false
             }
           ],
           "attemptToConvertTypes": false,
@@ -817,29 +819,45 @@
     "Telegram Trigger": [
       {
         "json": {
-          "update_id": 293524220,
+          "update_id": 293524328,
           "message": {
-            "message_id": 4546,
+            "message_id": 4859,
             "from": {
-              "id": 2046641311,
+              "id": 741409270,
               "is_bot": false,
-              "first_name": "Пётр",
-              "last_name": "Каменский",
+              "first_name": "Роман",
+              "last_name": "Галеев",
+              "username": "galeev_r",
               "language_code": "ru"
             },
             "chat": {
-              "id": 2046641311,
-              "first_name": "Пётр",
-              "last_name": "Каменский",
+              "id": 741409270,
+              "first_name": "Роман",
+              "last_name": "Галеев",
+              "username": "galeev_r",
               "type": "private"
             },
-            "date": 1768458536,
+            "date": 1770747840,
             "document": {
-              "file_name": "№18-102-1002 от 04.01.2026.pdf",
+              "file_name": "00-151-1022 тест.pdf",
               "mime_type": "application/pdf",
-              "file_id": "BQACAgIAAxkBAAIRwmloiSgnUoEcR4vs5QpjM-ta45ojAALaogAC-jNBSwRNA3RSi1-LOAQ",
-              "file_unique_id": "AgAD2qIAAvozQUs",
-              "file_size": 328480
+              "thumbnail": {
+                "file_id": "AAMCAgADGQEAAhL7aYt3wFxSSo5Rgl9pbt4qgUomMgwAAieVAAJHH1lICekOtacgxGMBAAdtAAM6BA",
+                "file_unique_id": "AQADJ5UAAkcfWUhy",
+                "file_size": 12992,
+                "width": 226,
+                "height": 320
+              },
+              "thumb": {
+                "file_id": "AAMCAgADGQEAAhL7aYt3wFxSSo5Rgl9pbt4qgUomMgwAAieVAAJHH1lICekOtacgxGMBAAdtAAM6BA",
+                "file_unique_id": "AQADJ5UAAkcfWUhy",
+                "file_size": 12992,
+                "width": 226,
+                "height": 320
+              },
+              "file_id": "BQACAgIAAxkBAAIS-2mLd8BcUkqOUYJfaW7eKoFKJjIMAAInlQACRx9ZSAnpDrWnIMRjOgQ",
+              "file_unique_id": "AgADJ5UAAkcfWUg",
+              "file_size": 633454
             }
           }
         },
@@ -983,7 +1001,7 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "cfc11575-d58e-4059-bff4-d253d6f2df3c",
+  "versionId": "08bef6bf-c579-43f2-bca6-dba2b24cb87c",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "721ab70d4d315d54bed19e17cef2128dfab1224c2d6738b18ce1e1f980f69628"

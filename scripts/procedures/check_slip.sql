@@ -6,6 +6,7 @@ DECLARE
   v_cam_count smallint;
   v_f1 text;
   v_f2 text;
+  v_is_outside boolean;
 
   v_req1 int[];
   v_req2 int[];
@@ -25,8 +26,8 @@ DECLARE
   v_bad_pairs_f1 text[];
   v_bad_pairs_f2 text[];
 BEGIN
-  SELECT cam_count, f1, f2
-  INTO v_cam_count, v_f1, v_f2
+  SELECT cam_count, f1, f2, coalesce(is_oytside, false)
+  INTO v_cam_count, v_f1, v_f2, v_is_outside
   FROM public.qual_analize_pos
   WHERE id = p_pos_id;
 
@@ -74,6 +75,13 @@ BEGIN
   FROM public.parse_order_elements_full(
     (SELECT position_formula FROM public.qual_analize_pos WHERE id = p_pos_id)
   ) e;
+
+  -- ПЕРЕВАРАЧИВАЕМ, если открывание наружу
+  IF v_is_outside THEN
+    SELECT array_agg(elem ORDER BY nr DESC)
+    INTO v_order_th
+    FROM unnest(v_order_th) WITH ORDINALITY AS t(elem, nr);
+  END IF;
 
   IF v_order_th IS NULL OR array_length(v_order_th, 1) IS NULL THEN
     RETURN;

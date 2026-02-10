@@ -26,6 +26,7 @@ CREATE TABLE entechai.public.qual_analize_pos (
 	overall_status text,
 	overall_message text,
 	updated_at timestamptz DEFAULT now(),
+	is_oytside bool,
 	CONSTRAINT qual_analize_pos_pkey PRIMARY KEY (id)
 );
 
