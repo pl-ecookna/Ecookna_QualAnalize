@@ -9,10 +9,18 @@ class PDFParser:
     # Regex Patterns
     # Номер: допускаем пробелы/переносы внутри
     # 1: Number, 2: Raw Formula, 3: Thickness, 4: Width, 5: Height, 6: Count, 7: Area, 8: Mass
-    ITEM_RE = re.compile(
-        r"(\d{2}-\d{3}-\s*\d{4}\/\d+\/\d+(?:[\/\w-]*))\s+([\s\S]*?)\s*\(\s*(\d+)(?:\s*мм)?\s*\)(?:\s*мм)?\s+(\d+)\s*[x×хХ]\s*(\d+)\s+(\d+)\s+([\d.,]+)\s+([\d.,]+)",
-        re.IGNORECASE
+    # Regex Patterns
+    # 1: Number
+    NUMBER_RE = re.compile(r"(\d{2}-\d{3}-\s*\d{4}\/\d+\/\d+(?:[\/\w-]*))")
+    
+    # Anchor: Width x Height Count Area Mass
+    # 1: Width, 2: Height, 3: Count, 4: Area, 5: Mass
+    ANCHOR_RE = re.compile(
+        r"(\d+)\s*[x×хХ]\s*(\d+)\s+(\d+)\s+([\d.,]+)\s+([\d.,]+)"
     )
+    
+    # Thickness RE (for context search)
+    THICK_RE = re.compile(r"\((\d+)(?:\s*мм)?\)")
     
     LAYOUT_RE = re.compile(r"Раскладка\s+([^\r\n]+)", re.IGNORECASE)
     SPLIT_RE = re.compile(r"Итого по изделию:", re.IGNORECASE)
@@ -43,40 +51,63 @@ class PDFParser:
             layout_match = PDFParser.LAYOUT_RE.search(block)
             layout = layout_match.group(1).strip() if layout_match else "отсутствует"
 
-            # Iterate over all items in the block
-            matches = list(PDFParser.ITEM_RE.finditer(block))
-            for i, m in enumerate(matches):
-                # 1. Extract raw groups
-                raw_num = m.group(1)
-                raw_formula = m.group(2)
-                raw_thick = m.group(3)
-                raw_width = m.group(4)
-                raw_height = m.group(5)
-                raw_count = m.group(6)
-                raw_area = m.group(7)
-                raw_mass = m.group(8)
-
-                # 2. Extract Post-Context (text after this item until next item or end)
-                start, end = m.span()
-                if i + 1 < len(matches):
-                    next_start = matches[i+1].start()
-                    post_context = block[end:next_start]
+            # Iterate over all items in the block using Anchors
+            # Anchor: Width x Height Count ...
+            anchors = list(PDFParser.ANCHOR_RE.finditer(block))
+            last_end = 0
+            
+            for i, anchor in enumerate(anchors):
+                # 1. Define Search Window for Number
+                # From end of previous item (or 0) to start of this anchor
+                pre_context = block[last_end:anchor.start()]
+                
+                # Find Number (take the last one found in this window)
+                num_matches = list(PDFParser.NUMBER_RE.finditer(pre_context))
+                if not num_matches:
+                    logger.warning(f"No number found for anchor at {anchor.start()}")
+                    continue
+                
+                num_match = num_matches[-1]
+                raw_num = num_match.group(1)
+                
+                # 2. Extract Formula
+                # Text between Number End and Anchor Start
+                raw_formula_chunk = pre_context[num_match.end():].strip()
+                
+                # 3. Extract Post-Context
+                # From Anchor End to start of next anchor (or block end)
+                if i + 1 < len(anchors):
+                    post_context_end = anchors[i+1].start()
                 else:
-                    post_context = block[end:]
+                    post_context_end = len(block)
+                
+                post_context = block[anchor.end():post_context_end]
+                
+                # 4. Extract Data from Anchor
+                raw_width = anchor.group(1)
+                raw_height = anchor.group(2)
+                raw_count = anchor.group(3)
+                raw_area = anchor.group(4)
+                raw_mass = anchor.group(5)
 
-                # 3. Clean and Normalize
+                # 5. Clean and Normalize
                 position_num = raw_num.replace(" ", "").replace("\n", "").strip()
+                raw_formula_clean = re.sub(r"\s+", " ", raw_formula_chunk).strip()
                 
-                # Check is_outside in formula AND post_context
-                # Clean formula only for formula analysis, but using raw+context for flags
-                raw_formula_clean = re.sub(r"\s+", " ", raw_formula).strip()
+                # Extract Thickness
+                # Check formula chunk first, then post-context
+                thick_match = PDFParser.THICK_RE.search(raw_formula_clean)
+                if not thick_match:
+                    thick_match = PDFParser.THICK_RE.search(post_context)
+                # thickness = int(thick_match.group(1)) if thick_match else 0 # Not strictly used yet
                 
+                # Check is_outside
                 full_text_check = (raw_formula_clean + " " + post_context).upper()
                 
                 is_outside = (
                     "СНАРУЖИ" in full_text_check or 
                     "НАРУЖУ" in full_text_check or 
-                    re.search(r"FS\b", full_text_check) is not None or # FS word boundary
+                    re.search(r"FS\b", full_text_check) is not None or 
                     raw_formula_clean.upper().endswith("FS") 
                 )
 
@@ -94,7 +125,6 @@ class PDFParser:
                     count = int(raw_count)
                     area = float(raw_area.replace(",", "."))
                     mass = float(raw_mass.replace(",", "."))
-                    # thick = int(raw_thick) # stored but not strictly used in main struct yet?
                 except ValueError as e:
                     logger.warning(f"Error parsing numbers for item {position_num}: {e}")
                     continue
@@ -109,7 +139,9 @@ class PDFParser:
                     "position_area": area,
                     "position_mass": mass,
                     "is_oytside": is_outside,
-                    "raw_formula": raw_formula_clean # debugging
+                    "raw_formula": raw_formula_clean 
                 })
+                
+                last_end = anchor.end()
         
         return items
