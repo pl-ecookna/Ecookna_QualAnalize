@@ -1,0 +1,316 @@
+
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ecookna Quality Check</title>
+    <style>
+        :root {
+            --primary-color: #007bff;
+            --secondary-color: #6c757d;
+            --success-color: #28a745;
+            --danger-color: #dc3545;
+            --light-bg: #f8f9fa;
+            --border-color: #dee2e6;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: var(--light-bg);
+            color: #333;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            min-height: 100vh;
+        }
+        .container {
+            width: 100%;
+            max-width: 800px;
+            background: white;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin: 20px;
+            padding: 20px;
+            border-radius: 8px;
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+        }
+        .upload-area {
+            border: 2px dashed var(--border-color);
+            border-radius: 8px;
+            padding: 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: border-color 0.3s;
+        }
+        .upload-area:hover {
+            border-color: var(--primary-color);
+        }
+        .upload-area.dragover {
+            border-color: var(--primary-color);
+            background-color: rgba(0, 123, 255, 0.05);
+        }
+        .btn {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-top: 15px;
+            transition: background 0.3s;
+        }
+        .btn:hover {
+            background-color: #0056b3;
+        }
+        .btn:disabled {
+            background-color: var(--secondary-color);
+            cursor: not-allowed;
+        }
+        #fileInput {
+            display: none;
+        }
+        .file-info {
+            margin-top: 10px;
+            font-style: italic;
+        }
+        #resultArea {
+            margin-top: 30px;
+            display: none;
+        }
+        .report-header {
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+        .report-header.success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .report-header.warning {
+            background-color: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeeba;
+        }
+        .report-header.error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .issue-card {
+            border: 1px solid var(--border-color);
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 4px;
+            border-left: 5px solid var(--danger-color);
+            background-color: #fff;
+        }
+        .issue-header {
+            font-weight: bold;
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+        }
+        .issue-details {
+            font-size: 0.9em;
+            color: #555;
+        }
+        .issue-error {
+            color: var(--danger-color);
+            margin-top: 5px;
+            font-weight: 500;
+        }
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid var(--primary-color);
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+            display: none;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        @media (max-width: 600px) {
+            .container {
+                margin: 0;
+                border-radius: 0;
+                min-height: 100vh;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Проверка заказа (PDF)</h1>
+    
+    <div class="upload-area" id="uploadArea">
+        <p>Нажмите или перетащите PDF файл сюда</p>
+        <span class="file-info" id="fileName"></span>
+        <input type="file" id="fileInput" accept="application/pdf">
+    </div>
+
+    <div style="text-align: center;">
+        <button class="btn" id="checkBtn" disabled>Проверить</button>
+    </div>
+    
+    <div class="loader" id="loader"></div>
+
+    <div id="resultArea"></div>
+</div>
+
+<script>
+    const uploadArea = document.getElementById('uploadArea');
+    const fileInput = document.getElementById('fileInput');
+    const fileNameDisplay = document.getElementById('fileName');
+    const checkBtn = document.getElementById('checkBtn');
+    const resultArea = document.getElementById('resultArea');
+    const loader = document.getElementById('loader');
+
+    let selectedFile = null;
+
+    // Drag and Drop
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        uploadArea.addEventListener(eventName, preventDefaults, false);
+    });
+
+    function preventDefaults(e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+
+    ['dragenter', 'dragover'].forEach(eventName => {
+        uploadArea.addEventListener(eventName, highlight, false);
+    });
+
+    ['dragleave', 'drop'].forEach(eventName => {
+        uploadArea.addEventListener(eventName, unhighlight, false);
+    });
+
+    function highlight(e) {
+        uploadArea.classList.add('dragover');
+    }
+
+    function unhighlight(e) {
+        uploadArea.classList.remove('dragover');
+    }
+
+    uploadArea.addEventListener('drop', handleDrop, false);
+
+    function handleDrop(e) {
+        const dt = e.dataTransfer;
+        const files = dt.files;
+        handleFiles(files);
+    }
+
+    // Click to select
+    uploadArea.addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('change', function() {
+        handleFiles(this.files);
+    });
+
+    function handleFiles(files) {
+        if (files.length > 0) {
+            selectedFile = files[0];
+            if (selectedFile.type !== 'application/pdf') {
+                alert('Пожалуйста, выберите PDF файл.');
+                selectedFile = null;
+                fileNameDisplay.textContent = '';
+                checkBtn.disabled = true;
+                return;
+            }
+            fileNameDisplay.textContent = selectedFile.name;
+            checkBtn.disabled = false;
+            resultArea.style.display = 'none';
+        }
+    }
+
+    checkBtn.addEventListener('click', async () => {
+        if (!selectedFile) return;
+
+        // UI Prep
+        checkBtn.disabled = true;
+        loader.style.display = 'block';
+        resultArea.style.display = 'none';
+        resultArea.innerHTML = '';
+
+        const formData = new FormData();
+        formData.append('file', selectedFile);
+
+        try {
+            const response = await fetch('/api/check', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (!response.ok) {
+                const errData = await response.json();
+                throw new Error(errData.detail || 'Ошибка сервера');
+            }
+
+            const data = await response.json();
+            renderResult(data);
+
+        } catch (error) {
+            resultArea.innerHTML = `<div class="report-header error">Ошибка: ${error.message}</div>`;
+            resultArea.style.display = 'block';
+        } finally {
+            loader.style.display = 'none';
+            checkBtn.disabled = false;
+        }
+    });
+
+    function renderResult(data) {
+        let headerClass = 'success';
+        let headerText = '';
+
+        if (data.status === 'success') {
+            headerText = `✅ Файл <b>${data.file_name}</b> проверен. Ошибок не обнаружено. (Позиций: ${data.total_items})`;
+        } else if (data.status === 'warning') {
+            headerClass = 'warning';
+            headerText = `⚠️ ${data.message}`;
+        } else {
+            headerClass = 'warning'; // Using warning color for "Issues found" as it's not a system error
+            headerText = `⚠️ В файле <b>${data.file_name}</b> обнаружены проблемы (${data.issues_count} поз. из ${data.total_items})`;
+        }
+
+        let html = `<div class="report-header ${headerClass}">${headerText}</div>`;
+
+        if (data.report_data && data.report_data.length > 0) {
+            data.report_data.forEach(item => {
+                const errorsHtml = item.errors.map(err => `<div class="issue-error">⛔️ ${err}</div>`).join('');
+                
+                let opening = item.is_outside ? "Наружу ↗️ (формула перевернута)" : "Внутрь ↙️";
+
+                html += `
+                <div class="issue-card">
+                    <div class="issue-header">
+                        <span>Позиция №${item.pos_num} (${item.size})</span>
+                    </div>
+                    <div class="issue-details">
+                        Формула: ${item.formula} <br>
+                        Открывание: ${opening} <br>
+                        Раскладка: ${item.raskl || '-'}
+                    </div>
+                    ${errorsHtml}
+                </div>
+                `;
+            });
+        }
+
+        resultArea.innerHTML = html;
+        resultArea.style.display = 'block';
+    }
+</script>
+
+</body>
+</html>
