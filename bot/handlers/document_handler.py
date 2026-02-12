@@ -48,7 +48,7 @@ async def process_pdf(bot: Bot, message: types.Message, file_id: str, file_name:
             return
 
         if not items:
-            await status_msg.edit_text("Не удалось извлечь позиции из файла. Возможно формат отличается от ожидаемого.")
+            await status_msg.edit_text("Не удалось извлечь позиции из файла. Вышлите pdf файл из StartОкна: Печать/Резерв/3.4 Заполнения")
             return
 
         # 3. Analyze

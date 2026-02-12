@@ -63,7 +63,7 @@ async def check_file(
         if not items:
             return JSONResponse(content={
                 "status": "warning", 
-                "message": "Не удалось извлечь позиции из файла. Возможно формат отличается от ожидаемого.",
+                "message": "Не удалось извлечь позиции из файла. Вышлите pdf файл из StartОкна: Печать/Резерв/3.4 Заполнения",
                 "file_name": file.filename,
                 "total_items": 0,
                 "issues_count": 0,
