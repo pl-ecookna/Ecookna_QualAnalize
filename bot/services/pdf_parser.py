@@ -131,6 +131,8 @@ class PDFParser:
                             break
                 else:
                     position_formula = raw_formula_no_thick
+                
+                logger.info(f"Item {position_num}: Raw='{raw_formula_no_thick}', Parsed='{position_formula}', IsOutside={is_outside}")
 
                 # Parse numbers
                 try:
