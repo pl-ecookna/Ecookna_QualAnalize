@@ -38,6 +38,13 @@ async def test_triplex_logic():
         "4.4.1": {"glass_article": "4.4.1", "type_of_processing": "Сырое"}
     }
     
+    # Мокаем кэш пленок для теста
+    analyzer._films_cache = {
+        "KngEVA0,38": "Для триплекса",
+        "KngEVA0,76": "Для триплекса",
+        "SolarFilm": "Обычная пленка"
+    }
+
     print("Test 1: parse_formula (Triplex 3.3.1TopN)")
     elements = analyzer.parse_formula("3.3.1TopNxH12x4М1", is_outside=False)
     assert elements[0]["is_triplex"] == True
@@ -96,6 +103,14 @@ async def test_triplex_logic():
     # expect 6mm < 6mm+2mm
     assert "6 мм (в заказе) < 6 мм + 2 мм (норма)" in errors[0]
     print("Test 6 Passed!")
+
+    print("Test 7: parse_formula (Custom film triplex 4LHSolarxKngEVA0,38x5М1)")
+    # Should merge 4LHSolar and 5М1 into a single triplex element with thickness 9
+    elements_custom = analyzer.parse_formula("4LHSolarxKngEVA0,38x5М1", is_outside=False)
+    assert len(elements_custom) == 1, f"Expected 1 merged element, got {len(elements_custom)}"
+    assert elements_custom[0]["thickness"] == 9, "Thickness should be 4 + 5 = 9"
+    assert elements_custom[0]["is_triplex"] == True, "Should be flagged as triplex"
+    print("Test 7 Passed!")
 
 if __name__ == "__main__":
     asyncio.run(test_triplex_logic())

@@ -12,15 +12,18 @@ logger = logging.getLogger(__name__)
 class Analyzer:
     def __init__(self, session: AsyncSession):
         self.session = session
-        self._films_cache: List[str] = []
+        self._films_cache: dict = {}
         self._articles_cache: dict = {}
         self.directus = DirectusClient(base_url=settings.DIRECTUS_URL, token=settings.DIRECTUS_TOKEN, verify_ssl=False)
 
     async def load_films(self):
-        """Loads films from DB to cache."""
-        stmt = select(Film.films_article).where(Film.films_article.isnot(None))
+        """Loads films from DB to cache dict."""
+        stmt = select(Film.films_article, Film.type_of_film).where(Film.films_article.isnot(None))
         result = await self.session.execute(stmt)
-        self._films_cache = [row[0].strip() for row in result.all()]
+        for row in result.all():
+            article = row[0].strip()
+            film_type = row[1].strip() if row[1] else ""
+            self._films_cache[article] = film_type
         logger.info(f"Loaded {len(self._films_cache)} films from DB.")
 
     async def load_articles(self):
@@ -58,6 +61,8 @@ class Analyzer:
         # Split by 'x' or 'х' (Cyrillic)
         raw_parts = re.split(r"[xх]", formula)
         elements = []
+        
+        pending_triplex_film = False
 
         for part in raw_parts:
             article = part.strip()
@@ -66,8 +71,10 @@ class Analyzer:
 
             # Filter Films
             # We assume self._films_cache is populated.
-            # strict check: article in films
             if article in self._films_cache:
+                film_type = self._films_cache.get(article, "")
+                if film_type.lower() == "для триплекса":
+                    pending_triplex_film = True
                 continue
 
             # Determine type (Glass vs Frame)
@@ -84,13 +91,30 @@ class Analyzer:
                 if processing and processing.lower() == "закаленное":
                     is_tempered = True
             
-            elements.append({
+            new_element = {
                 "article": article,
                 "type": etype,
                 "thickness": thickness,
                 "is_triplex": is_triplex,
                 "is_tempered": is_tempered
-            })
+            }
+            
+            if etype == "glass" and pending_triplex_film and elements:
+                # Merge with the previous glass
+                prev_element = elements.pop()
+                if prev_element["type"] == "glass":
+                    new_element["article"] = f"{prev_element['article']} + {article}"
+                    new_element["thickness"] += prev_element["thickness"]
+                    new_element["is_triplex"] = True
+                    # If either was tempered, the triplex is considered tempered (for validation logic)
+                    new_element["is_tempered"] = new_element["is_tempered"] or prev_element["is_tempered"]
+                else:
+                    # In case the previous element wasn't a glass, just put it back
+                    elements.append(prev_element)
+                
+                pending_triplex_film = False
+                
+            elements.append(new_element)
         
         # If is_outside, reverse the elements order
         # Requirement: "Outside -> Inside" normalization
