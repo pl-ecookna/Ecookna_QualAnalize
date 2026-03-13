@@ -281,9 +281,9 @@ export default function App() {
           </div>
         </header>
 
-        <section className="grid gap-4 xl:h-[43rem] xl:grid-cols-[0.9fr_1.05fr_1.2fr] xl:items-stretch">
+        <section className="grid gap-4 xl:h-[34.5rem] xl:grid-cols-[0.9fr_1.05fr_1.2fr] xl:items-stretch">
           <Card className="overflow-hidden border-border/70 bg-card/95 shadow-sm xl:h-full">
-            <CardHeader className="min-h-32 gap-2 border-b border-border/70 bg-[linear-gradient(135deg,rgba(39,174,96,0.12),rgba(255,255,255,0.9))]">
+            <CardHeader className="min-h-[6.5rem] gap-2 border-b border-border/70 bg-[linear-gradient(135deg,rgba(39,174,96,0.12),rgba(255,255,255,0.9))]">
               <div className="flex items-start justify-between gap-4">
                 <div className="space-y-2">
                   <CardTitle className="text-2xl">Подбор формулы</CardTitle>
@@ -356,7 +356,7 @@ export default function App() {
           </Card>
 
           <Card className="overflow-hidden border-border/70 bg-card/95 shadow-sm xl:h-full">
-            <CardHeader className="min-h-32 gap-2 border-b border-border/70 bg-[linear-gradient(135deg,rgba(39,174,96,0.12),rgba(255,255,255,0.9))]">
+            <CardHeader className="min-h-[6.5rem] gap-2 border-b border-border/70 bg-[linear-gradient(135deg,rgba(39,174,96,0.12),rgba(255,255,255,0.9))]">
               <div className="flex items-start justify-between gap-4">
                 <div className="space-y-2">
                   <CardTitle className="text-2xl">Проверка заказа</CardTitle>
@@ -439,9 +439,25 @@ export default function App() {
           </Card>
         
           <Card className="overflow-hidden border-border/70 bg-card/95 shadow-sm xl:h-full">
-            <CardHeader className="min-h-32 gap-2 border-b border-border/70 bg-[linear-gradient(135deg,rgba(39,174,96,0.12),rgba(255,255,255,0.9))]">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="flex flex-wrap items-center gap-3">
+            <CardHeader className="relative min-h-[6.5rem] gap-2 border-b border-border/70 bg-[linear-gradient(135deg,rgba(39,174,96,0.12),rgba(255,255,255,0.9))]">
+              <div className="absolute top-6 right-6">
+                <Button
+                  variant="outline"
+                  className="rounded-xl"
+                  onClick={() => void copyCombinedResult()}
+                  disabled={!resultText}
+                >
+                  <Copy className="size-4" />
+                  {copyState === "copied"
+                    ? "Скопировано"
+                    : copyState === "error"
+                      ? "Ошибка копирования"
+                      : "Скопировать"}
+                </Button>
+              </div>
+              <div className="space-y-2 pr-40">
+                <CardTitle className="text-2xl">Результат проверок</CardTitle>
+                <div className="flex min-h-6 flex-wrap items-center gap-3">
                   {activeResult === "search" ? (
                     <Badge
                       variant={searchError || searchResult?.status === "not_found" ? "secondary" : "default"}
@@ -461,21 +477,7 @@ export default function App() {
                     </Badge>
                   ) : null}
                 </div>
-                <Button
-                  variant="outline"
-                  className="rounded-xl"
-                  onClick={() => void copyCombinedResult()}
-                  disabled={!resultText}
-                >
-                  <Copy className="size-4" />
-                  {copyState === "copied"
-                    ? "Скопировано"
-                    : copyState === "error"
-                      ? "Ошибка копирования"
-                      : "Скопировать"}
-                </Button>
               </div>
-              <CardTitle className="text-2xl">Результат проверок</CardTitle>
             </CardHeader>
             <CardContent className="flex flex-1 flex-col pt-5">
               {resultText ? (
