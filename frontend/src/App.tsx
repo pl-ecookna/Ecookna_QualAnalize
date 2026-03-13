@@ -146,24 +146,38 @@ export default function App() {
   const [pdfError, setPdfError] = useState<string | null>(null)
   const [pdfResult, setPdfResult] = useState<PdfCheckResponse | null>(null)
   const [copyState, setCopyState] = useState<"idle" | "copied" | "error">("idle")
+  const [activeResult, setActiveResult] = useState<"search" | "pdf" | null>(null)
 
   const normalizeIntegerInput = (value: string) => value.replace(/\D/g, "")
 
   const searchResultText = formatSearchResultText(searchResult, searchError)
   const pdfResultText = formatPdfResultText(pdfResult, pdfError)
-  const combinedResultText = [searchResultText, pdfResultText].filter(Boolean).join("\n\n")
+  const resultText =
+    activeResult === "search"
+      ? searchResultText
+      : activeResult === "pdf"
+        ? pdfResultText
+        : ""
 
   const submitSearch = async () => {
     const width = widthValue.trim()
     const height = heightValue.trim()
     if (!width || !height) {
+      setActiveResult("search")
+      setPdfError(null)
+      setPdfResult(null)
       setSearchError("Укажите ширину и высоту стеклопакета")
       setSearchResult(null)
       return
     }
 
+    setActiveResult("search")
     setSearchLoading(true)
     setSearchError(null)
+    setSearchResult(null)
+    setPdfError(null)
+    setPdfResult(null)
+    setCopyState("idle")
 
     try {
       const response = await fetch("/api/slip-formulas", {
@@ -203,9 +217,13 @@ export default function App() {
       return
     }
 
+    setActiveResult("pdf")
     setPdfLoading(true)
     setPdfError(null)
     setPdfResult(null)
+    setSearchError(null)
+    setSearchResult(null)
+    setCopyState("idle")
 
     try {
       const formData = new FormData()
@@ -228,12 +246,12 @@ export default function App() {
   }
 
   const copyCombinedResult = async () => {
-    if (!combinedResultText) {
+    if (!resultText) {
       return
     }
 
     try {
-      await navigator.clipboard.writeText(combinedResultText)
+      await navigator.clipboard.writeText(resultText)
       setCopyState("copied")
       window.setTimeout(() => setCopyState("idle"), 2000)
     } catch {
@@ -243,10 +261,10 @@ export default function App() {
   }
 
   return (
-    <main className="min-h-screen px-4 py-6 text-foreground sm:px-6 lg:px-10">
-      <div className="mx-auto flex max-w-6xl flex-col gap-6">
+    <main className="min-h-screen px-4 py-4 text-foreground sm:px-6 lg:px-8">
+      <div className="mx-auto flex max-w-7xl flex-col gap-4">
         <header className="overflow-hidden rounded-[28px] border border-border/60 bg-card/90 shadow-sm backdrop-blur">
-          <div className="flex flex-col gap-4 px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="space-y-1">
               <div className="flex items-center gap-3">
                 <div className="rounded-2xl bg-primary px-3 py-2 text-sm font-semibold tracking-[0.18em] text-primary-foreground">
@@ -263,9 +281,9 @@ export default function App() {
           </div>
         </header>
 
-        <section className="grid gap-6 xl:grid-cols-2">
+        <section className="grid gap-4 xl:grid-cols-[0.9fr_1.05fr_1.2fr] xl:items-stretch">
           <Card className="overflow-hidden border-border/70 bg-card/95 shadow-sm">
-            <CardHeader className="min-h-56 gap-4 border-b border-border/70 bg-[linear-gradient(135deg,rgba(39,174,96,0.12),rgba(255,255,255,0.9))]">
+            <CardHeader className="min-h-40 gap-3 border-b border-border/70 bg-[linear-gradient(135deg,rgba(39,174,96,0.12),rgba(255,255,255,0.9))]">
               <div className="flex items-start justify-between gap-4">
                 <div className="space-y-2">
                   <Badge className="rounded-full px-3 py-1 text-[11px] uppercase tracking-[0.18em]">
@@ -273,8 +291,7 @@ export default function App() {
                   </Badge>
                   <CardTitle className="text-2xl">Подбор формулы из таблицы слипания</CardTitle>
                   <CardDescription className="max-w-2xl text-sm leading-6">
-                    Введите размер стеклопакета в формате <span className="font-medium text-foreground">1520*2730</span>.
-                    Система покажет все доступные формулы, которые есть в таблице.
+                    Введите ширину и высоту, чтобы получить допустимые формулы из таблицы.
                   </CardDescription>
                 </div>
                 <div className="hidden rounded-3xl border border-white/80 bg-white/70 p-3 text-primary shadow-sm sm:block">
@@ -282,9 +299,9 @@ export default function App() {
                 </div>
               </div>
             </CardHeader>
-            <CardContent className="flex h-full flex-col justify-between gap-6 pt-6">
+            <CardContent className="flex h-full flex-col justify-between gap-4 pt-5">
               <div className="grid gap-4">
-                <div className="grid gap-4 sm:grid-cols-2">
+                <div className="grid gap-3">
                   <div className="space-y-2">
                     <label className="text-sm font-medium">Ширина, мм</label>
                     <Input
@@ -293,7 +310,7 @@ export default function App() {
                       inputMode="numeric"
                       pattern="[0-9]*"
                       placeholder="Например, 1520"
-                      className="h-12 rounded-xl border-border/80 bg-white text-base shadow-none"
+                      className="h-11 rounded-xl border-border/80 bg-white text-base shadow-none"
                       onKeyDown={(event) => {
                         if (event.key === "Enter") {
                           event.preventDefault()
@@ -310,7 +327,7 @@ export default function App() {
                       inputMode="numeric"
                       pattern="[0-9]*"
                       placeholder="Например, 2730"
-                      className="h-12 rounded-xl border-border/80 bg-white text-base shadow-none"
+                      className="h-11 rounded-xl border-border/80 bg-white text-base shadow-none"
                       onKeyDown={(event) => {
                         if (event.key === "Enter") {
                           event.preventDefault()
@@ -324,7 +341,7 @@ export default function App() {
               <Button
                 onClick={() => void submitSearch()}
                 disabled={searchLoading}
-                className="h-12 w-full rounded-xl px-6 text-sm font-semibold"
+                className="h-11 w-full rounded-xl px-5 text-sm font-semibold"
               >
                 {searchLoading ? (
                   <>
@@ -342,7 +359,7 @@ export default function App() {
           </Card>
 
           <Card className="overflow-hidden border-border/70 bg-card/95 shadow-sm">
-            <CardHeader className="min-h-56 gap-4 border-b border-border/70 bg-[linear-gradient(135deg,rgba(39,174,96,0.12),rgba(255,255,255,0.9))]">
+            <CardHeader className="min-h-40 gap-3 border-b border-border/70 bg-[linear-gradient(135deg,rgba(39,174,96,0.12),rgba(255,255,255,0.9))]">
               <div className="flex items-start justify-between gap-4">
                 <div className="space-y-2">
               <Badge variant="secondary" className="w-fit rounded-full px-3 py-1 text-[11px] uppercase tracking-[0.18em]">
@@ -351,10 +368,10 @@ export default function App() {
                   <CardTitle className="text-2xl">Проверка заказа</CardTitle>
                   <CardDescription className="leading-6">
                     Загрузите PDF из StartОкна. Нужная форма отчета находится в меню{" "}
-                    <span className="inline-flex rounded-full border border-primary/20 bg-primary/10 px-3 py-1 font-medium text-primary">
+                    <span className="inline-flex rounded-full border border-primary/20 bg-primary/10 px-2.5 py-0.5 font-medium text-primary">
                       Печать/Резерв/3.4 Заполнения
                     </span>
-                    . Проверка использует те же серверные правила, что и бот.
+                    .
                   </CardDescription>
                 </div>
                 <div className="hidden rounded-3xl border border-white/80 bg-white/70 p-3 text-primary shadow-sm sm:block">
@@ -362,7 +379,7 @@ export default function App() {
                 </div>
               </div>
             </CardHeader>
-            <CardContent className="flex h-full flex-col justify-between gap-4 pt-6">
+            <CardContent className="flex h-full flex-col justify-between gap-4 pt-5">
               <div
                 onDragOver={(event) => {
                   event.preventDefault()
@@ -378,14 +395,14 @@ export default function App() {
                   selectFile(event.dataTransfer.files[0] ?? null)
                 }}
                 className={cn(
-                  "rounded-[24px] border border-dashed p-6 text-center transition-colors",
+                  "rounded-[24px] border border-dashed p-5 text-center transition-colors",
                   isDragging
                     ? "border-primary bg-primary/5"
                     : "border-border bg-secondary/30",
                 )}
               >
-                <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-                  <FileUp className="size-7" />
+                <div className="mx-auto mb-3 flex size-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                  <FileUp className="size-6" />
                 </div>
                 <div className="space-y-2">
                   <p className="text-sm font-medium">Нажмите или перетащите PDF сюда</p>
@@ -403,7 +420,7 @@ export default function App() {
                 />
                 <Button
                   variant="outline"
-                  className="mt-5 rounded-xl"
+                  className="mt-4 rounded-xl"
                   onClick={() => fileInputRef.current?.click()}
                 >
                   Выбрать PDF
@@ -413,7 +430,7 @@ export default function App() {
               <Button
                 onClick={() => void submitPdf()}
                 disabled={!selectedFile || pdfLoading}
-                className="h-12 w-full rounded-xl text-sm font-semibold"
+                className="h-11 w-full rounded-xl text-sm font-semibold"
               >
                 {pdfLoading ? (
                   <>
@@ -426,9 +443,8 @@ export default function App() {
               </Button>
             </CardContent>
           </Card>
-        </section>
-
-        <Card className="border-border/70 bg-card/95 shadow-sm">
+        
+          <Card className="border-border/70 bg-card/95 shadow-sm">
             <CardHeader className="gap-4 border-b border-border/70">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="flex flex-wrap items-center gap-3">
@@ -438,14 +454,14 @@ export default function App() {
                   >
                     Общий результат
                   </Badge>
-                  {searchResult || searchError ? (
+                  {activeResult === "search" ? (
                     <Badge
                       variant={searchError || searchResult?.status === "not_found" ? "secondary" : "default"}
                     >
                       Подбор формулы
                     </Badge>
                   ) : null}
-                  {pdfResult || pdfError ? (
+                  {activeResult === "pdf" ? (
                     <Badge
                       variant={
                         pdfError || pdfResult?.status === "issues_found" || pdfResult?.status === "warning"
@@ -461,7 +477,7 @@ export default function App() {
                   variant="outline"
                   className="rounded-xl"
                   onClick={() => void copyCombinedResult()}
-                  disabled={!combinedResultText}
+                  disabled={!resultText}
                 >
                   <Copy className="size-4" />
                   {copyState === "copied"
@@ -477,12 +493,12 @@ export default function App() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4 pt-6">
-              {combinedResultText ? (
-                <div className="rounded-[24px] border border-border/70 bg-secondary/25 p-4">
+              {resultText ? (
+                <div className="rounded-[24px] border border-border/70 bg-secondary/25 p-3">
                   <textarea
                     readOnly
-                    value={combinedResultText}
-                    className="min-h-80 w-full resize-y rounded-[18px] border border-border/70 bg-white/90 p-4 font-mono text-sm leading-6 text-foreground outline-none"
+                    value={resultText}
+                    className="h-[28rem] w-full resize-none rounded-[18px] border border-border/70 bg-white/90 p-4 font-mono text-sm leading-6 text-foreground outline-none xl:h-[31rem]"
                   />
                 </div>
               ) : (
@@ -496,6 +512,7 @@ export default function App() {
               )}
             </CardContent>
           </Card>
+        </section>
       </div>
     </main>
   )
