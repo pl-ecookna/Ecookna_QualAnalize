@@ -23,6 +23,13 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
 
@@ -342,6 +349,7 @@ export default function App() {
   const [pdfResult, setPdfResult] = useState<PdfCheckResponse | null>(null)
   const [copyState, setCopyState] = useState<"idle" | "copied" | "error">("idle")
   const [activeResult, setActiveResult] = useState<"search" | "pdf" | null>(null)
+  const [resultDialogOpen, setResultDialogOpen] = useState(false)
 
   const normalizeIntegerInput = (value: string) => value.replace(/\D/g, "")
 
@@ -363,6 +371,7 @@ export default function App() {
       setPdfResult(null)
       setSearchError("Укажите ширину и высоту стеклопакета")
       setSearchResult(null)
+      setResultDialogOpen(true)
       return
     }
 
@@ -385,9 +394,11 @@ export default function App() {
         throw new Error("detail" in data ? data.detail || "Ошибка поиска" : "Ошибка поиска")
       }
       setSearchResult(data as SlipLookupResponse)
+      setResultDialogOpen(true)
     } catch (error) {
       setSearchResult(null)
       setSearchError(error instanceof Error ? error.message : "Ошибка поиска")
+      setResultDialogOpen(true)
     } finally {
       setSearchLoading(false)
     }
@@ -400,6 +411,8 @@ export default function App() {
     if (file.type !== "application/pdf") {
       setPdfError("Пожалуйста, выберите PDF файл.")
       setSelectedFile(null)
+      setActiveResult("pdf")
+      setResultDialogOpen(true)
       return
     }
     setPdfError(null)
@@ -433,8 +446,10 @@ export default function App() {
         throw new Error("detail" in data ? data.detail || "Ошибка сервера" : "Ошибка сервера")
       }
       setPdfResult(data as PdfCheckResponse)
+      setResultDialogOpen(true)
     } catch (error) {
       setPdfError(error instanceof Error ? error.message : "Ошибка сервера")
+      setResultDialogOpen(true)
     } finally {
       setPdfLoading(false)
     }
@@ -476,7 +491,7 @@ export default function App() {
           </div>
         </header>
 
-        <section className="grid gap-4 xl:h-[34.5rem] xl:grid-cols-[0.9fr_1.05fr_1.2fr] xl:items-stretch">
+        <section className="grid gap-4 xl:grid-cols-2 xl:items-stretch">
           <Card className="overflow-hidden border-border/70 bg-card/95 shadow-sm xl:h-full">
             <CardHeader className="min-h-[6.5rem] gap-2 border-b border-border/70 bg-[linear-gradient(135deg,rgba(39,174,96,0.12),rgba(255,255,255,0.9))]">
               <div className="flex items-start justify-between gap-4">
@@ -632,26 +647,17 @@ export default function App() {
               </Button>
             </CardContent>
           </Card>
-        
-          <Card className="overflow-hidden border-border/70 bg-card/95 shadow-sm xl:h-full">
-            <CardHeader className="relative min-h-[6.5rem] gap-2 border-b border-border/70 bg-[linear-gradient(135deg,rgba(39,174,96,0.12),rgba(255,255,255,0.9))]">
-              <div className="absolute top-6 right-6">
-                <Button
-                  variant="outline"
-                  className="rounded-xl"
-                  onClick={() => void copyCombinedResult()}
-                  disabled={!resultText}
-                >
-                  <Copy className="size-4" />
-                  {copyState === "copied"
-                    ? "Скопировано"
-                    : copyState === "error"
-                      ? "Ошибка копирования"
-                      : "Скопировать"}
-                </Button>
-              </div>
-              <div className="space-y-2 pr-40">
-                <CardTitle className="text-2xl">Результат проверок</CardTitle>
+        </section>
+      </div>
+
+      <Dialog open={resultDialogOpen} onOpenChange={setResultDialogOpen}>
+        <DialogContent className="max-w-4xl rounded-[28px] border-border/70 bg-background/98 p-0 shadow-2xl">
+          <DialogHeader className="border-b border-border/70 bg-[linear-gradient(135deg,rgba(39,174,96,0.12),rgba(255,255,255,0.92))] px-6 py-5 pr-24 text-left">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="space-y-2">
+                <DialogTitle className="text-3xl font-semibold tracking-tight">
+                  Результат проверок
+                </DialogTitle>
                 <div className="flex min-h-6 flex-wrap items-center gap-3">
                   {activeResult === "search" ? (
                     <Badge
@@ -673,33 +679,48 @@ export default function App() {
                   ) : null}
                 </div>
               </div>
-            </CardHeader>
-            <CardContent className="flex flex-1 flex-col pt-5">
-              {resultText ? (
-                <div className="h-full overflow-auto rounded-[24px] border border-border/70 bg-secondary/25 p-3">
-                  <div className="min-h-full rounded-[18px] border border-border/70 bg-white/90 p-4">
-                    {activeResult === "search" ? (
-                      <SearchResultView result={searchResult} error={searchError} />
-                    ) : (
-                      <PdfResultView result={pdfResult} error={pdfError} />
-                    )}
-                  </div>
+              <Button
+                variant="outline"
+                className="rounded-xl"
+                onClick={() => void copyCombinedResult()}
+                disabled={!resultText}
+              >
+                <Copy className="size-4" />
+                {copyState === "copied"
+                  ? "Скопировано"
+                  : copyState === "error"
+                    ? "Ошибка копирования"
+                    : "Скопировать"}
+              </Button>
+            </div>
+            <DialogDescription className="sr-only">
+              Подробный результат последней проверки.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="max-h-[75vh] overflow-auto p-5">
+            {resultText ? (
+              <div className="rounded-[24px] border border-border/70 bg-secondary/25 p-3">
+                <div className="rounded-[18px] border border-border/70 bg-white/90 p-4">
+                  {activeResult === "search" ? (
+                    <SearchResultView result={searchResult} error={searchError} />
+                  ) : (
+                    <PdfResultView result={pdfResult} error={pdfError} />
+                  )}
                 </div>
-              ) : (
-                <div className="flex h-full items-center">
-                <Alert className="w-full rounded-2xl border-border/70 bg-secondary/30">
-                  <AlertCircle className="size-4" />
-                  <AlertTitle>Пока нет результата</AlertTitle>
-                  <AlertDescription>
-                    Выполните подбор формулы или проверку PDF, и результат появится здесь в едином блоке.
-                  </AlertDescription>
-                </Alert>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </section>
-      </div>
+              </div>
+            ) : (
+              <Alert className="rounded-2xl border-border/70 bg-secondary/30">
+                <AlertCircle className="size-4" />
+                <AlertTitle>Пока нет результата</AlertTitle>
+                <AlertDescription>
+                  Выполните подбор формулы или проверку PDF, и результат появится в модальном окне.
+                </AlertDescription>
+              </Alert>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </main>
   )
 }
