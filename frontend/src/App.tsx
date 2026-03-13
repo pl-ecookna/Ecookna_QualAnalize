@@ -506,21 +506,21 @@ export default function App() {
               <img
                 src={heroQaIllustration}
                 alt="Иллюстрация проверки заказа"
-                className="h-[178px] w-full object-cover object-[center_top] lg:h-[200px]"
+                className="h-[178px] w-full bg-white object-contain object-center p-2 lg:h-[200px]"
               />
             </div>
 
             <div className="flex min-w-0 items-center justify-center">
-              <h1 className="text-center text-[2rem] font-semibold tracking-tight sm:text-[2.35rem] lg:text-[2.7rem]">
+              <h1 className="whitespace-nowrap text-center text-[1.8rem] font-semibold tracking-tight sm:text-[2.1rem] lg:text-[2.5rem]">
                 Подбор формул и проверка заказов
               </h1>
             </div>
 
-            <div className="flex items-center justify-center lg:justify-end">
+            <div className="flex items-start justify-center pt-1 lg:justify-end">
               <img
                 src={ecooknaGroupLogo}
                 alt="ECOOKNA GROUP"
-                className="h-auto w-[220px] max-w-full object-contain"
+                className="h-auto w-[210px] max-w-full object-contain"
               />
             </div>
           </div>
