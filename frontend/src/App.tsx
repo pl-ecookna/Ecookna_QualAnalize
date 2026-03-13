@@ -70,6 +70,17 @@ const formulaGroups: Array<{ key: "1k" | "2k" | "3k"; title: string }> = [
 
 const visibleFormulaGroups = formulaGroups.filter(({ key }) => key !== "3k")
 
+function splitMarkingLines(marking: string | null) {
+  if (!marking) {
+    return []
+  }
+
+  return marking
+    .split(/\s+/)
+    .map((part) => part.trim())
+    .filter(Boolean)
+}
+
 function formatSearchResultText(result: SlipLookupResponse | null, error: string | null) {
   if (error) {
     return `ПОДБОР ФОРМУЛЫ\nОшибка: ${error}`
@@ -85,8 +96,10 @@ function formatSearchResultText(result: SlipLookupResponse | null, error: string
     `Округление: ${result.width_round}x${result.height_round}`,
   ]
 
-  if (result.marking) {
-    lines.push("Маркировка: Формулы из таблицы слипания")
+  const markingLines = splitMarkingLines(result.marking)
+  if (markingLines.length > 0) {
+    lines.push("Формулы из таблицы слипания:")
+    markingLines.forEach((line) => lines.push(line))
   }
 
   if (result.status === "not_found") {
@@ -166,7 +179,7 @@ function SearchResultView({
     return null
   }
 
-  const hasMarking = Boolean(result.marking)
+  const markingLines = splitMarkingLines(result.marking)
   const visibleGroups = visibleFormulaGroups.filter(({ key }) => (result.formulas[key] || []).length > 0)
 
   const statusTone =
@@ -206,10 +219,16 @@ function SearchResultView({
         </div>
       </div>
 
-      {hasMarking ? (
+      {markingLines.length > 0 ? (
         <div className="rounded-2xl border border-border/70 bg-white/90 p-3">
-          <div className="text-xs uppercase tracking-[0.14em] text-muted-foreground">Маркировка</div>
-          <div className="mt-1.5 text-base font-medium">Формулы из таблицы слипания</div>
+          <div className="text-xs uppercase tracking-[0.14em] text-muted-foreground">Формулы из таблицы слипания</div>
+          <div className="mt-1.5 space-y-1.5">
+            {markingLines.map((line) => (
+              <div key={line} className="text-base font-medium">
+                {line}
+              </div>
+            ))}
+          </div>
         </div>
       ) : null}
 
