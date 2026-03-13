@@ -1,12 +1,12 @@
 import { useRef, useState } from "react"
 import {
   AlertCircle,
-  CheckCircle2,
+  Copy,
   FileSearch,
   FileUp,
   LoaderCircle,
+  ScanSearch,
   Search,
-  ShieldAlert,
 } from "lucide-react"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -20,7 +20,6 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import { Separator } from "@/components/ui/separator"
 import { cn } from "@/lib/utils"
 
 type SlipLookupResponse = {
@@ -58,6 +57,81 @@ const formulaGroups: Array<{ key: "1k" | "2k" | "3k"; title: string }> = [
   { key: "3k", title: "3-камерные" },
 ]
 
+function formatSearchResultText(result: SlipLookupResponse | null, error: string | null) {
+  if (error) {
+    return `ПОДБОР ФОРМУЛЫ\nОшибка: ${error}`
+  }
+
+  if (!result) {
+    return ""
+  }
+
+  const lines = [
+    "ПОДБОР ФОРМУЛЫ",
+    `Размер: ${result.width}x${result.height}`,
+    `Округление: ${result.width_round}x${result.height_round}`,
+  ]
+
+  if (result.marking) {
+    lines.push(`Маркировка: ${result.marking}`)
+  }
+
+  if (result.status === "not_found") {
+    lines.push("Результат: правило в таблице слипания не найдено")
+    return lines.join("\n")
+  }
+
+  lines.push("Результат: формулы найдены")
+
+  formulaGroups.forEach(({ key, title }) => {
+    const values = result.formulas[key] || []
+    if (values.length > 0) {
+      lines.push(`${title}:`)
+      values.forEach((formula) => lines.push(`- ${formula}`))
+    }
+  })
+
+  return lines.join("\n")
+}
+
+function formatPdfResultText(result: PdfCheckResponse | null, error: string | null) {
+  if (error) {
+    return `ПРОВЕРКА PDF\nОшибка: ${error}`
+  }
+
+  if (!result) {
+    return ""
+  }
+
+  const lines = [
+    "ПРОВЕРКА PDF",
+    `Файл: ${result.file_name}`,
+    `Всего позиций: ${result.total_items}`,
+    `Проблемных позиций: ${result.issues_count}`,
+  ]
+
+  if (result.status === "success") {
+    lines.push("Результат: отклонений по таблице слипания не обнаружено")
+    return lines.join("\n")
+  }
+
+  if (result.status === "warning" && result.message) {
+    lines.push(`Результат: ${result.message}`)
+    return lines.join("\n")
+  }
+
+  result.report_data.forEach((item) => {
+    lines.push("")
+    lines.push(`Позиция №${item.pos_num} | ${item.size}`)
+    lines.push(`Формула: ${item.formula}`)
+    lines.push(`Открывание: ${item.is_outside ? "Наружу (формула перевернута)" : "Внутрь"}`)
+    lines.push(`Раскладка: ${item.raskl || "Нет"}`)
+    item.errors.forEach((issue) => lines.push(`- ${issue}`))
+  })
+
+  return lines.join("\n")
+}
+
 export default function App() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [widthValue, setWidthValue] = useState("")
@@ -71,8 +145,13 @@ export default function App() {
   const [pdfLoading, setPdfLoading] = useState(false)
   const [pdfError, setPdfError] = useState<string | null>(null)
   const [pdfResult, setPdfResult] = useState<PdfCheckResponse | null>(null)
+  const [copyState, setCopyState] = useState<"idle" | "copied" | "error">("idle")
 
   const normalizeIntegerInput = (value: string) => value.replace(/\D/g, "")
+
+  const searchResultText = formatSearchResultText(searchResult, searchError)
+  const pdfResultText = formatPdfResultText(pdfResult, pdfError)
+  const combinedResultText = [searchResultText, pdfResultText].filter(Boolean).join("\n\n")
 
   const submitSearch = async () => {
     const width = widthValue.trim()
@@ -148,6 +227,21 @@ export default function App() {
     }
   }
 
+  const copyCombinedResult = async () => {
+    if (!combinedResultText) {
+      return
+    }
+
+    try {
+      await navigator.clipboard.writeText(combinedResultText)
+      setCopyState("copied")
+      window.setTimeout(() => setCopyState("idle"), 2000)
+    } catch {
+      setCopyState("error")
+      window.setTimeout(() => setCopyState("idle"), 2000)
+    }
+  }
+
   return (
     <main className="min-h-screen px-4 py-6 text-foreground sm:px-6 lg:px-10">
       <div className="mx-auto flex max-w-6xl flex-col gap-6">
@@ -169,9 +263,9 @@ export default function App() {
           </div>
         </header>
 
-        <section className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+        <section className="grid gap-6 xl:grid-cols-2">
           <Card className="overflow-hidden border-border/70 bg-card/95 shadow-sm">
-            <CardHeader className="gap-4 border-b border-border/70 bg-[linear-gradient(135deg,rgba(39,174,96,0.12),rgba(255,255,255,0.9))]">
+            <CardHeader className="min-h-56 gap-4 border-b border-border/70 bg-[linear-gradient(135deg,rgba(39,174,96,0.12),rgba(255,255,255,0.9))]">
               <div className="flex items-start justify-between gap-4">
                 <div className="space-y-2">
                   <Badge className="rounded-full px-3 py-1 text-[11px] uppercase tracking-[0.18em]">
@@ -188,8 +282,8 @@ export default function App() {
                 </div>
               </div>
             </CardHeader>
-            <CardContent className="space-y-6 pt-6">
-              <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
+            <CardContent className="flex h-full flex-col justify-between gap-6 pt-6">
+              <div className="grid gap-4">
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
                     <label className="text-sm font-medium">Ширина, мм</label>
@@ -226,116 +320,49 @@ export default function App() {
                     />
                   </div>
                 </div>
-                <Button
-                  onClick={() => void submitSearch()}
-                  disabled={searchLoading}
-                  className="h-12 rounded-xl px-6 text-sm font-semibold"
-                >
-                  {searchLoading ? (
-                    <>
-                      <LoaderCircle className="size-4 animate-spin" />
-                      Подбираем
-                    </>
-                  ) : (
-                    <>
-                      <FileSearch className="size-4" />
-                      Подобрать формулы
-                    </>
-                  )}
-                </Button>
               </div>
-
-              {searchError ? (
-                <Alert variant="destructive" className="rounded-2xl border-destructive/30 bg-destructive/5">
-                  <AlertCircle className="size-4" />
-                  <AlertTitle>Ошибка поиска</AlertTitle>
-                  <AlertDescription>{searchError}</AlertDescription>
-                </Alert>
-              ) : null}
-
-              {searchResult ? (
-                <div className="space-y-4">
-                  <Alert
-                    className={cn(
-                      "rounded-2xl border",
-                      searchResult.status === "not_found"
-                        ? "border-amber-200 bg-amber-50 text-amber-950"
-                        : "border-emerald-200 bg-emerald-50 text-emerald-950",
-                    )}
-                  >
-                    {searchResult.status === "not_found" ? (
-                      <ShieldAlert className="size-4" />
-                    ) : (
-                      <CheckCircle2 className="size-4" />
-                    )}
-                    <AlertTitle>
-                      {searchResult.status === "not_found"
-                        ? "Правило не найдено"
-                        : "Формулы найдены"}
-                    </AlertTitle>
-                    <AlertDescription>
-                      <div className="flex flex-wrap gap-2">
-                        <Badge variant="outline">Размер: {searchResult.width}x{searchResult.height}</Badge>
-                        <Badge variant="outline">
-                          Округление: {searchResult.width_round}x{searchResult.height_round}
-                        </Badge>
-                        {searchResult.marking ? (
-                          <Badge variant="outline">Маркировка: {searchResult.marking}</Badge>
-                        ) : null}
-                      </div>
-                      {searchResult.status === "not_found" ? (
-                        <p className="pt-2">
-                          Для этого размера в таблице слипания нет подходящей строки.
-                        </p>
-                      ) : null}
-                    </AlertDescription>
-                  </Alert>
-
-                  {searchResult.status === "success" ? (
-                    <div className="grid gap-4 md:grid-cols-3">
-                      {formulaGroups
-                        .filter(({ key }) => (searchResult.formulas[key] || []).length > 0)
-                        .map(({ key, title }) => (
-                          <Card key={key} className="gap-4 rounded-2xl border-border/70 bg-white/90 py-5 shadow-none">
-                            <CardHeader className="gap-3 px-5">
-                              <CardTitle className="text-lg">{title}</CardTitle>
-                            </CardHeader>
-                            <CardContent className="px-5">
-                              <ul className="space-y-3 text-sm leading-6 text-muted-foreground">
-                                {searchResult.formulas[key].map((formula) => (
-                                  <li
-                                    key={formula}
-                                    className="rounded-xl border border-border/70 bg-secondary/40 px-3 py-2 text-foreground"
-                                  >
-                                    {formula}
-                                  </li>
-                                ))}
-                              </ul>
-                            </CardContent>
-                          </Card>
-                        ))}
-                    </div>
-                  ) : null}
-                </div>
-              ) : null}
+              <Button
+                onClick={() => void submitSearch()}
+                disabled={searchLoading}
+                className="h-12 w-full rounded-xl px-6 text-sm font-semibold"
+              >
+                {searchLoading ? (
+                  <>
+                    <LoaderCircle className="size-4 animate-spin" />
+                    Подбираем
+                  </>
+                ) : (
+                  <>
+                    <FileSearch className="size-4" />
+                    Подобрать формулы
+                  </>
+                )}
+              </Button>
             </CardContent>
           </Card>
 
-          <Card className="border-border/70 bg-card/95 shadow-sm">
-            <CardHeader className="border-b border-border/70">
+          <Card className="overflow-hidden border-border/70 bg-card/95 shadow-sm">
+            <CardHeader className="min-h-56 gap-4 border-b border-border/70 bg-[linear-gradient(135deg,rgba(39,174,96,0.12),rgba(255,255,255,0.9))]">
+              <div className="flex items-start justify-between gap-4">
+                <div className="space-y-2">
               <Badge variant="secondary" className="w-fit rounded-full px-3 py-1 text-[11px] uppercase tracking-[0.18em]">
                 Анализ PDF
               </Badge>
-              <CardTitle className="text-2xl">Проверка заказа</CardTitle>
-              <CardDescription className="leading-6">
-                Загрузите PDF из StartОкна. Нужная форма отчета находится в меню{" "}
-                <span className="inline-flex rounded-full border border-primary/20 bg-primary/10 px-3 py-1 font-medium text-primary">
-                  Печать/Резерв/3.4 Заполнения
-                </span>
-                . Проверка использует те же серверные правила, что и бот.
-              </CardDescription>
+                  <CardTitle className="text-2xl">Проверка заказа</CardTitle>
+                  <CardDescription className="leading-6">
+                    Загрузите PDF из StartОкна. Нужная форма отчета находится в меню{" "}
+                    <span className="inline-flex rounded-full border border-primary/20 bg-primary/10 px-3 py-1 font-medium text-primary">
+                      Печать/Резерв/3.4 Заполнения
+                    </span>
+                    . Проверка использует те же серверные правила, что и бот.
+                  </CardDescription>
+                </div>
+                <div className="hidden rounded-3xl border border-white/80 bg-white/70 p-3 text-primary shadow-sm sm:block">
+                  <ScanSearch className="size-6" />
+                </div>
+              </div>
             </CardHeader>
-            <CardContent className="space-y-4 pt-6">
+            <CardContent className="flex h-full flex-col justify-between gap-4 pt-6">
               <div
                 onDragOver={(event) => {
                   event.preventDefault()
@@ -397,101 +424,78 @@ export default function App() {
                   "Проверить файл"
                 )}
               </Button>
-
-              {pdfError ? (
-                <Alert variant="destructive" className="rounded-2xl border-destructive/30 bg-destructive/5">
-                  <AlertCircle className="size-4" />
-                  <AlertTitle>Ошибка проверки</AlertTitle>
-                  <AlertDescription>{pdfError}</AlertDescription>
-                </Alert>
-              ) : null}
             </CardContent>
           </Card>
         </section>
 
-        {pdfResult ? (
-          <Card className="border-border/70 bg-card/95 shadow-sm">
+        <Card className="border-border/70 bg-card/95 shadow-sm">
             <CardHeader className="gap-4 border-b border-border/70">
-              <div className="flex flex-wrap items-center gap-3">
-                <Badge
-                  variant={pdfResult.status === "success" ? "default" : "secondary"}
-                  className="rounded-full px-3 py-1 text-[11px] uppercase tracking-[0.18em]"
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex flex-wrap items-center gap-3">
+                  <Badge
+                    variant="outline"
+                    className="rounded-full px-3 py-1 text-[11px] uppercase tracking-[0.18em]"
+                  >
+                    Общий результат
+                  </Badge>
+                  {searchResult || searchError ? (
+                    <Badge
+                      variant={searchError || searchResult?.status === "not_found" ? "secondary" : "default"}
+                    >
+                      Подбор формулы
+                    </Badge>
+                  ) : null}
+                  {pdfResult || pdfError ? (
+                    <Badge
+                      variant={
+                        pdfError || pdfResult?.status === "issues_found" || pdfResult?.status === "warning"
+                          ? "secondary"
+                          : "default"
+                      }
+                    >
+                      Проверка PDF
+                    </Badge>
+                  ) : null}
+                </div>
+                <Button
+                  variant="outline"
+                  className="rounded-xl"
+                  onClick={() => void copyCombinedResult()}
+                  disabled={!combinedResultText}
                 >
-                  {pdfResult.status === "success"
-                    ? "Ошибок нет"
-                    : pdfResult.status === "warning"
-                      ? "Предупреждение"
-                      : "Есть замечания"}
-                </Badge>
-                <div className="text-sm text-muted-foreground">{pdfResult.file_name}</div>
+                  <Copy className="size-4" />
+                  {copyState === "copied"
+                    ? "Скопировано"
+                    : copyState === "error"
+                      ? "Ошибка копирования"
+                      : "Скопировать"}
+                </Button>
               </div>
-              <CardTitle className="text-2xl">Результат проверки PDF</CardTitle>
+              <CardTitle className="text-2xl">Результат проверок</CardTitle>
               <CardDescription className="leading-6">
-                Всего позиций: {pdfResult.total_items}. Проблемных позиций: {pdfResult.issues_count}.
+                Все результаты выводятся в одном текстовом блоке. Его удобно целиком выделить и скопировать.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4 pt-6">
-              {pdfResult.status === "success" ? (
-                <Alert className="rounded-2xl border-emerald-200 bg-emerald-50 text-emerald-950">
-                  <CheckCircle2 className="size-4" />
-                  <AlertTitle>Файл успешно проверен</AlertTitle>
-                  <AlertDescription>Отклонений по таблице слипания не обнаружено.</AlertDescription>
-                </Alert>
-              ) : null}
-
-              {pdfResult.status === "warning" && pdfResult.message ? (
-                <Alert className="rounded-2xl border-amber-200 bg-amber-50 text-amber-950">
-                  <AlertCircle className="size-4" />
-                  <AlertTitle>Нужна корректная выгрузка</AlertTitle>
-                  <AlertDescription>{pdfResult.message}</AlertDescription>
-                </Alert>
-              ) : null}
-
-              {pdfResult.report_data.length > 0 ? (
-                <div className="grid gap-4">
-                  {pdfResult.report_data.map((item) => (
-                    <Card key={`${item.pos_num}-${item.size}`} className="gap-4 rounded-2xl border-border/70 bg-white/90 py-5 shadow-none">
-                      <CardHeader className="gap-3 px-5">
-                        <div className="flex flex-wrap items-center justify-between gap-3">
-                          <CardTitle className="text-lg">Позиция №{item.pos_num}</CardTitle>
-                          <Badge variant="outline">{item.size}</Badge>
-                        </div>
-                        <CardDescription className="space-y-1 text-sm leading-6">
-                          <div>
-                            <span className="font-medium text-foreground">Формула:</span> {item.formula}
-                          </div>
-                          <div>
-                            <span className="font-medium text-foreground">Открывание:</span>{" "}
-                            {item.is_outside ? "Наружу (формула перевернута)" : "Внутрь"}
-                          </div>
-                          <div>
-                            <span className="font-medium text-foreground">Раскладка:</span> {item.raskl || "Нет"}
-                          </div>
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent className="px-5">
-                        <Separator className="mb-4" />
-                        <div className="space-y-2">
-                          {item.errors.map((error) => (
-                            <Alert
-                              key={error}
-                              variant="destructive"
-                              className="rounded-2xl border-destructive/25 bg-destructive/5"
-                            >
-                              <ShieldAlert className="size-4" />
-                              <AlertTitle>Несоответствие</AlertTitle>
-                              <AlertDescription>{error}</AlertDescription>
-                            </Alert>
-                          ))}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
+              {combinedResultText ? (
+                <div className="rounded-[24px] border border-border/70 bg-secondary/25 p-4">
+                  <textarea
+                    readOnly
+                    value={combinedResultText}
+                    className="min-h-80 w-full resize-y rounded-[18px] border border-border/70 bg-white/90 p-4 font-mono text-sm leading-6 text-foreground outline-none"
+                  />
                 </div>
-              ) : null}
+              ) : (
+                <Alert className="rounded-2xl border-border/70 bg-secondary/30">
+                  <AlertCircle className="size-4" />
+                  <AlertTitle>Пока нет результата</AlertTitle>
+                  <AlertDescription>
+                    Выполните подбор формулы или проверку PDF, и результат появится здесь в едином блоке.
+                  </AlertDescription>
+                </Alert>
+              )}
             </CardContent>
           </Card>
-        ) : null}
       </div>
     </main>
   )
