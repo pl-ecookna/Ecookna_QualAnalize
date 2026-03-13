@@ -68,6 +68,8 @@ const formulaGroups: Array<{ key: "1k" | "2k" | "3k"; title: string }> = [
   { key: "3k", title: "3-камерные" },
 ]
 
+const visibleFormulaGroups = formulaGroups.filter(({ key }) => key !== "3k")
+
 function formatSearchResultText(result: SlipLookupResponse | null, error: string | null) {
   if (error) {
     return `ПОДБОР ФОРМУЛЫ\nОшибка: ${error}`
@@ -84,7 +86,7 @@ function formatSearchResultText(result: SlipLookupResponse | null, error: string
   ]
 
   if (result.marking) {
-    lines.push(`Маркировка: ${result.marking}`)
+    lines.push("Маркировка: Формулы из таблицы слипания")
   }
 
   if (result.status === "not_found") {
@@ -94,11 +96,11 @@ function formatSearchResultText(result: SlipLookupResponse | null, error: string
 
   lines.push("Результат: формулы найдены")
 
-  formulaGroups.forEach(({ key, title }) => {
+  visibleFormulaGroups.forEach(({ key, title }) => {
     const values = result.formulas[key] || []
     if (values.length > 0) {
       lines.push(`${title}:`)
-      values.forEach((formula) => lines.push(`- ${formula}`))
+      values.forEach((formula) => lines.push(formula))
     }
   })
 
@@ -164,6 +166,9 @@ function SearchResultView({
     return null
   }
 
+  const hasMarking = Boolean(result.marking)
+  const visibleGroups = visibleFormulaGroups.filter(({ key }) => (result.formulas[key] || []).length > 0)
+
   const statusTone =
     result.status === "success"
       ? "border-emerald-200 bg-emerald-50 text-emerald-950"
@@ -201,18 +206,16 @@ function SearchResultView({
         </div>
       </div>
 
-      {result.marking ? (
+      {hasMarking ? (
         <div className="rounded-2xl border border-border/70 bg-white/90 p-3">
           <div className="text-xs uppercase tracking-[0.14em] text-muted-foreground">Маркировка</div>
-          <div className="mt-1.5 text-base font-medium">{result.marking}</div>
+          <div className="mt-1.5 text-base font-medium">Формулы из таблицы слипания</div>
         </div>
       ) : null}
 
-      {result.status === "success" ? (
+      {result.status === "success" && visibleGroups.length > 0 ? (
         <div className="space-y-2.5">
-          {formulaGroups
-            .filter(({ key }) => (result.formulas[key] || []).length > 0)
-            .map(({ key, title }) => (
+          {visibleGroups.map(({ key, title }) => (
               <div key={key} className="rounded-2xl border border-border/70 bg-white/90 p-3">
                 <div className="mb-2.5 flex items-center gap-2">
                   <Info className="size-4 text-primary" />
@@ -220,7 +223,10 @@ function SearchResultView({
                 </div>
                 <ul className="space-y-1.5">
                   {result.formulas[key].map((formula) => (
-                    <li key={formula} className="flex items-start gap-3 rounded-xl bg-secondary/35 px-3 py-1.5">
+                    <li
+                      key={formula}
+                      className="flex items-start gap-3 rounded-xl border border-border/50 bg-secondary/20 px-3 py-2"
+                    >
                       <span className="mt-1 size-2 rounded-full bg-primary" />
                       <span className="font-mono text-sm">{formula}</span>
                     </li>
