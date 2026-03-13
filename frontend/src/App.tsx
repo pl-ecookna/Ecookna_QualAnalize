@@ -506,7 +506,7 @@ export default function App() {
               <img
                 src={heroQaIllustration}
                 alt="Иллюстрация проверки заказа"
-                className="h-[160px] w-full object-cover lg:h-[190px]"
+                className="h-[160px] w-full bg-[#f7f7f5] object-contain p-2 lg:h-[190px]"
               />
             </div>
 
@@ -520,7 +520,7 @@ export default function App() {
               <img
                 src={ecooknaGroupLogo}
                 alt="ECOOKNA GROUP"
-                className="h-auto w-[220px] max-w-full"
+                className="h-auto w-[240px] max-w-full"
               />
             </div>
           </div>
