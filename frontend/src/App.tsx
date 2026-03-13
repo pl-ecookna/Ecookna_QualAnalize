@@ -60,7 +60,8 @@ const formulaGroups: Array<{ key: "1k" | "2k" | "3k"; title: string }> = [
 
 export default function App() {
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const [sizeValue, setSizeValue] = useState("")
+  const [widthValue, setWidthValue] = useState("")
+  const [heightValue, setHeightValue] = useState("")
   const [searchLoading, setSearchLoading] = useState(false)
   const [searchError, setSearchError] = useState<string | null>(null)
   const [searchResult, setSearchResult] = useState<SlipLookupResponse | null>(null)
@@ -71,10 +72,13 @@ export default function App() {
   const [pdfError, setPdfError] = useState<string | null>(null)
   const [pdfResult, setPdfResult] = useState<PdfCheckResponse | null>(null)
 
+  const normalizeIntegerInput = (value: string) => value.replace(/\D/g, "")
+
   const submitSearch = async () => {
-    const size = sizeValue.trim()
-    if (!size) {
-      setSearchError("Укажите размер стеклопакета")
+    const width = widthValue.trim()
+    const height = heightValue.trim()
+    if (!width || !height) {
+      setSearchError("Укажите ширину и высоту стеклопакета")
       setSearchResult(null)
       return
     }
@@ -86,7 +90,7 @@ export default function App() {
       const response = await fetch("/api/slip-formulas", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ size }),
+        body: JSON.stringify({ size: `${width}*${height}` }),
       })
       const data = (await response.json()) as SlipLookupResponse | { detail?: string }
       if (!response.ok) {
@@ -162,10 +166,6 @@ export default function App() {
                 Подбор формул и проверка заказов
               </h1>
             </div>
-            <div className="max-w-md text-sm leading-6 text-muted-foreground">
-              Один экран для продавца: сначала быстрый подбор по таблице слипания,
-              затем проверка PDF-выгрузки из StartОкна.
-            </div>
           </div>
         </header>
 
@@ -190,20 +190,41 @@ export default function App() {
             </CardHeader>
             <CardContent className="space-y-6 pt-6">
               <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Размер</label>
-                  <Input
-                    value={sizeValue}
-                    onChange={(event) => setSizeValue(event.target.value)}
-                    placeholder="Например, 1520*2730"
-                    className="h-12 rounded-xl border-border/80 bg-white text-base shadow-none"
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter") {
-                        event.preventDefault()
-                        void submitSearch()
-                      }
-                    }}
-                  />
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Ширина, мм</label>
+                    <Input
+                      value={widthValue}
+                      onChange={(event) => setWidthValue(normalizeIntegerInput(event.target.value))}
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      placeholder="Например, 1520"
+                      className="h-12 rounded-xl border-border/80 bg-white text-base shadow-none"
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") {
+                          event.preventDefault()
+                          void submitSearch()
+                        }
+                      }}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Высота, мм</label>
+                    <Input
+                      value={heightValue}
+                      onChange={(event) => setHeightValue(normalizeIntegerInput(event.target.value))}
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      placeholder="Например, 2730"
+                      className="h-12 rounded-xl border-border/80 bg-white text-base shadow-none"
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") {
+                          event.preventDefault()
+                          void submitSearch()
+                        }
+                      }}
+                    />
+                  </div>
                 </div>
                 <Button
                   onClick={() => void submitSearch()}
@@ -307,8 +328,11 @@ export default function App() {
               </Badge>
               <CardTitle className="text-2xl">Проверка заказа</CardTitle>
               <CardDescription className="leading-6">
-                Загрузите PDF из StartОкна: Печать/Резерв/3.4 Заполнения. Проверка
-                использует те же серверные правила, что и бот.
+                Загрузите PDF из StartОкна. Нужная форма отчета находится в меню{" "}
+                <span className="inline-flex rounded-full border border-primary/20 bg-primary/10 px-3 py-1 font-medium text-primary">
+                  Печать/Резерв/3.4 Заполнения
+                </span>
+                . Проверка использует те же серверные правила, что и бот.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4 pt-6">
