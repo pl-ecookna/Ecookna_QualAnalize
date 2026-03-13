@@ -653,11 +653,11 @@ export default function App() {
       <Dialog open={resultDialogOpen} onOpenChange={setResultDialogOpen}>
         <DialogContent className="max-w-4xl rounded-[28px] border-border/70 bg-background/98 p-0 shadow-2xl">
           <DialogHeader className="border-b border-border/70 bg-[linear-gradient(135deg,rgba(39,174,96,0.12),rgba(255,255,255,0.92))] px-6 py-5 text-left">
-            <div className="flex items-start justify-between gap-4">
-              <div className="min-w-0 space-y-2">
-                <DialogTitle className="text-3xl font-semibold tracking-tight">
-                  Результат проверок
-                </DialogTitle>
+            <div className="space-y-3">
+              <DialogTitle className="text-3xl font-semibold tracking-tight">
+                Результат проверок
+              </DialogTitle>
+              <div className="flex items-center justify-between gap-4">
                 <div className="flex min-h-11 items-center gap-3">
                   {activeResult === "search" ? (
                     <Badge
@@ -680,20 +680,20 @@ export default function App() {
                     </Badge>
                   ) : null}
                 </div>
+                <Button
+                  variant="outline"
+                  className="h-11 rounded-xl px-5 text-base"
+                  onClick={() => void copyCombinedResult()}
+                  disabled={!resultText}
+                >
+                  <Copy className="size-4" />
+                  {copyState === "copied"
+                    ? "Скопировано"
+                    : copyState === "error"
+                      ? "Ошибка копирования"
+                      : "Скопировать"}
+                </Button>
               </div>
-              <Button
-                variant="outline"
-                className="h-11 rounded-xl px-5 text-base"
-                onClick={() => void copyCombinedResult()}
-                disabled={!resultText}
-              >
-                <Copy className="size-4" />
-                {copyState === "copied"
-                  ? "Скопировано"
-                  : copyState === "error"
-                    ? "Ошибка копирования"
-                    : "Скопировать"}
-              </Button>
             </div>
             <DialogDescription className="sr-only">
               Подробный результат последней проверки.
