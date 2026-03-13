@@ -32,8 +32,8 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
-import ecooknaGroupLogo from "@/assets/ecookna-group.svg"
-import heroQaIllustration from "@/assets/hero-qa.svg"
+import ecooknaGroupLogo from "@/assets/ecookna-group.png"
+import heroQaIllustration from "@/assets/kaleva-hero.png"
 
 type SlipLookupResponse = {
   status: "success" | "not_found"
@@ -501,12 +501,12 @@ export default function App() {
     <main className="min-h-screen px-4 py-4 text-foreground sm:px-6 lg:px-8">
       <div className="mx-auto flex max-w-7xl flex-col gap-4">
         <header className="overflow-hidden rounded-[28px] border border-border/60 bg-card/90 shadow-sm backdrop-blur">
-          <div className="grid gap-6 px-5 py-5 lg:grid-cols-[240px_minmax(0,1fr)_220px] lg:items-center lg:gap-8 lg:px-7">
-            <div className="overflow-hidden rounded-[24px] border border-border/70 bg-muted/30">
+          <div className="grid gap-6 px-5 py-5 lg:grid-cols-[260px_minmax(0,1fr)_250px] lg:items-center lg:gap-8 lg:px-7">
+            <div className="overflow-hidden rounded-[24px] border border-border/70 bg-white/80 shadow-sm">
               <img
                 src={heroQaIllustration}
                 alt="Иллюстрация проверки заказа"
-                className="h-[160px] w-full bg-[#f7f7f5] object-contain p-2 lg:h-[190px]"
+                className="h-[178px] w-full object-cover object-[center_top] lg:h-[200px]"
               />
             </div>
 
@@ -520,7 +520,7 @@ export default function App() {
               <img
                 src={ecooknaGroupLogo}
                 alt="ECOOKNA GROUP"
-                className="h-auto w-[240px] max-w-full"
+                className="h-auto w-[220px] max-w-full object-contain"
               />
             </div>
           </div>
