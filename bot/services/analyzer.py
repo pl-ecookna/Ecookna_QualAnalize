@@ -89,7 +89,7 @@ class Analyzer:
             # Determine type (Glass vs Frame)
             # Logic from SQL: ^[HWНШ] -> frame, else glass
             # Also common sense: frames usually start with letters indicating spacer
-            is_frame = re.match(r"^[HWНШ]", article, re.IGNORECASE)
+            is_frame = bool(re.match(r"^[HWНШ]", article, re.IGNORECASE) or re.search(r"^[A-Za-z]+[HWНШ]\d+", article, re.IGNORECASE))
             etype = "frame" if is_frame else "glass"
             
             thickness, is_triplex = self.get_thickness(article)

@@ -210,8 +210,6 @@ class PDFParser:
         return (
             "СНАРУЖИ" in full_text_check
             or "НАРУЖУ" in full_text_check
-            or re.search(r"FS\b", full_text_check) is not None
-            or raw_formula.upper().endswith("FS")
         )
 
     @classmethod
@@ -233,7 +231,7 @@ class PDFParser:
 
             if anchor_row is None:
                 anchor_words = [
-                    word for word in row["words"] if float(word["x0"]) >= formula_left and float(word["x1"]) <= size_left + 170
+                    word for word in row["words"] if float(word["x0"]) >= formula_left and float(word["x1"]) <= size_left + 220
                 ]
                 anchor_text = " ".join(cls._word_text(word) for word in anchor_words)
                 if cls.ANCHOR_RE.search(anchor_text):
@@ -399,8 +397,6 @@ class PDFParser:
                 is_outside = (
                     "СНАРУЖИ" in full_text_check
                     or "НАРУЖУ" in full_text_check
-                    or re.search(r"FS\b", full_text_check) is not None
-                    or raw_formula_clean.upper().endswith("FS")
                 )
 
                 raw_formula_no_thick = cls.THICK_RE.sub("", raw_formula_clean).strip()
