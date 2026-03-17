@@ -22,6 +22,11 @@ class PDFParser:
         "ПЛОЩАДЬ",
         "МАССА",
         "ИТОГО",
+        "ЭСКИЗ",
+        "ВИД",
+        "ЧЕРТЕЖ",
+        "ЭЛЕМЕНТ",
+        "МАРКИРОВКА",
     }
 
     LAYOUT_RE = re.compile(r"Раскладка\s+([^\r\n]+)", re.IGNORECASE)
@@ -174,8 +179,9 @@ class PDFParser:
 
     @classmethod
     def _normalize_formula(cls, raw_formula: str) -> str:
-        raw_formula_no_thick = cls.THICK_RE.sub("", cls._normalize_spaces(raw_formula)).strip()
-        return raw_formula_no_thick.replace(" ", "")
+        # Use token-based truncation to avoid picking up text after formula ends
+        clean = cls._extract_formula_source(raw_formula)
+        return clean.replace(" ", "")
 
     @classmethod
     def _parse_numbers_from_anchor(cls, anchor_row_text: str) -> Optional[Dict[str, Any]]:
@@ -399,11 +405,8 @@ class PDFParser:
                     or "НАРУЖУ" in full_text_check
                 )
 
-                raw_formula_no_thick = cls.THICK_RE.sub("", raw_formula_clean).strip()
-                position_formula = cls._extract_formula_source(raw_formula_no_thick)
-
-                continuation_source = cls.THICK_RE.sub("", post_context).strip()
-                formula_continuation = cls._extract_formula_continuation(continuation_source)
+                position_formula = cls._extract_formula_source(raw_formula_clean)
+                formula_continuation = cls._extract_formula_continuation(post_context)
                 if formula_continuation:
                     position_formula += formula_continuation
 
