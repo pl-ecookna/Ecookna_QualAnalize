@@ -167,6 +167,14 @@ class Analyzer:
             return 0
         return len(re.findall(r"[xх][нНhHwW]", formula, re.IGNORECASE))
 
+    def has_spacer(self, formula: str) -> bool:
+        """
+        Returns True if formula contains a spacer frame marker (xH/xW/xН/..).
+        """
+        if not formula:
+            return False
+        return bool(re.search(r"[xх][нНhHwW]", formula, re.IGNORECASE))
+
     async def _find_size_control_rule(self, width: int, height: int) -> Tuple[Optional[SizeControl], int, int]:
         """Returns matching size_control rule with rounded dimensions."""
         w_round = self._round_size(width)

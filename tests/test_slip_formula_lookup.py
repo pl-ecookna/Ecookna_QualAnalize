@@ -124,6 +124,15 @@ def test_analyzer_parse_formula_does_not_split_on_vh_in_service_text():
     assert len(elements) == 5
 
 
+def test_analyzer_has_spacer_detects_single_glazing():
+    analyzer = Analyzer(session=None)
+
+    assert analyzer.has_spacer("6LHSolarxW14RAL9005x4М1") is True
+    assert analyzer.has_spacer("4ИxН14x4М1") is True
+    assert analyzer.has_spacer("М1_4мм.") is False
+    assert analyzer.has_spacer("") is False
+
+
 PDF_FIXTURE_PATH = "/Users/romangaleev/Downloads/18-133-1041.pdf"
 
 
