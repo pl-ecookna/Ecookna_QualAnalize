@@ -65,6 +65,16 @@ async def test_get_slip_formulas_by_size_returns_grouped_formulas():
     assert result["formulas"]["1k"] == ["4-16-4", "6-16-4"]
     assert result["formulas"]["2k"] == ["4-10-4-10-4"]
     assert result["formulas"]["3k"] == ["4-8-4-8-4-8-4"]
+    assert result["formula_details"]["1k"] == [
+        {"formula": "4-16-4", "total_thickness": 8},
+        {"formula": "6-16-4", "total_thickness": 10},
+    ]
+    assert result["formula_details"]["2k"] == [
+        {"formula": "4-10-4-10-4", "total_thickness": 12},
+    ]
+    assert result["formula_details"]["3k"] == [
+        {"formula": "4-8-4-8-4-8-4", "total_thickness": 16},
+    ]
 
 
 @pytest.mark.asyncio
@@ -86,7 +96,26 @@ async def test_get_slip_formulas_by_size_returns_not_found_payload():
         "height_round": 2700,
         "marking": None,
         "formulas": {},
+        "formula_details": {},
     }
+
+
+@pytest.mark.parametrize(
+    ("formula", "expected"),
+    [
+        ("4-16-4", 8),
+        ("6-16-4", 10),
+        ("4-10-4-10-4", 12),
+        (" 8-14-8 ", 16),
+        ("", None),
+        (None, None),
+        ("abc", None),
+    ],
+)
+def test_get_formula_total_thickness(formula, expected):
+    analyzer = Analyzer(session=None)
+
+    assert analyzer.get_formula_total_thickness(formula) == expected
 
 
 def test_pdf_parser_cleans_service_labels_and_glues_broken_formula():

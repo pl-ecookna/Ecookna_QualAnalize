@@ -31,20 +31,15 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
+import {
+  formatSearchResultText,
+  SlipLookupResponse,
+  splitMarkingLines,
+  visibleFormulaGroups,
+} from "@/lib/slip-report"
 import { cn } from "@/lib/utils"
 import ecooknaGroupLogo from "@/assets/ecookna-group.png"
 import heroQaIllustration from "@/assets/kaleva-hero.png"
-
-type SlipLookupResponse = {
-  status: "success" | "not_found"
-  message?: string
-  width: number
-  height: number
-  width_round: number
-  height_round: number
-  marking: string | null
-  formulas: Record<"1k" | "2k" | "3k", string[]>
-}
 
 type PdfReportItem = {
   pos_num: string
@@ -62,64 +57,6 @@ type PdfCheckResponse = {
   total_items: number
   issues_count: number
   report_data: PdfReportItem[]
-}
-
-const formulaGroups: Array<{ key: "1k" | "2k" | "3k"; title: string }> = [
-  { key: "1k", title: "1-камерные" },
-  { key: "2k", title: "2-камерные" },
-  { key: "3k", title: "3-камерные" },
-]
-
-const visibleFormulaGroups = formulaGroups.filter(({ key }) => key !== "3k")
-
-function splitMarkingLines(marking: string | null) {
-  if (!marking) {
-    return []
-  }
-
-  return marking
-    .split(/\s+/)
-    .map((part) => part.trim())
-    .filter(Boolean)
-}
-
-function formatSearchResultText(result: SlipLookupResponse | null, error: string | null) {
-  if (error) {
-    return `ПОДБОР ФОРМУЛЫ\nОшибка: ${error}`
-  }
-
-  if (!result) {
-    return ""
-  }
-
-  const lines = [
-    "ПОДБОР ФОРМУЛЫ",
-    `Размер: ${result.width}x${result.height}`,
-    `Округление: ${result.width_round}x${result.height_round}`,
-  ]
-
-  const markingLines = splitMarkingLines(result.marking)
-  if (markingLines.length > 0) {
-    lines.push("Формулы из таблицы слипания:")
-    markingLines.forEach((line) => lines.push(line))
-  }
-
-  if (result.status === "not_found") {
-    lines.push("Результат: правило в таблице слипания не найдено")
-    return lines.join("\n")
-  }
-
-  lines.push("Результат: формулы найдены")
-
-  visibleFormulaGroups.forEach(({ key, title }) => {
-    const values = result.formulas[key] || []
-    if (values.length > 0) {
-      lines.push(`${title}:`)
-      values.forEach((formula) => lines.push(formula))
-    }
-  })
-
-  return lines.join("\n")
 }
 
 function formatPdfResultText(result: PdfCheckResponse | null, error: string | null) {
@@ -182,7 +119,7 @@ function SearchResultView({
   }
 
   const markingLines = splitMarkingLines(result.marking)
-  const visibleGroups = visibleFormulaGroups.filter(({ key }) => (result.formulas[key] || []).length > 0)
+  const visibleGroups = visibleFormulaGroups.filter(({ key }) => (result.formula_details[key] || []).length > 0)
 
   const statusTone =
     result.status === "success"
@@ -243,13 +180,18 @@ function SearchResultView({
                   <h3 className="text-sm font-semibold">{title}</h3>
                 </div>
                 <ul className="space-y-1.5">
-                  {result.formulas[key].map((formula) => (
+                  {result.formula_details[key].map((formulaDetail) => (
                     <li
-                      key={formula}
+                      key={formulaDetail.formula}
                       className="flex items-start gap-3 rounded-xl border border-border/50 bg-secondary/20 px-3 py-2"
                     >
                       <span className="mt-1 size-2 rounded-full bg-primary" />
-                      <span className="font-mono text-sm">{formula}</span>
+                      <span className="font-mono text-sm">
+                        <span>{formulaDetail.formula}</span>
+                        {formulaDetail.total_thickness != null ? (
+                          <span className="ml-1 text-red-600">({formulaDetail.total_thickness})</span>
+                        ) : null}
+                      </span>
                     </li>
                   ))}
                 </ul>

@@ -167,6 +167,35 @@ class Analyzer:
             return 0
         return len(re.findall(r"[xх][нНhHwW]", formula, re.IGNORECASE))
 
+    def get_formula_total_thickness(self, formula: Optional[str]) -> Optional[int]:
+        """
+        Calculates total glass thickness from a slip formula like `4-16-4` or `6-16-6-14-4`.
+        Only glass positions are summed: 1st, 3rd, 5th, etc.
+        """
+        if not formula:
+            return None
+
+        cleaned = re.sub(r"\s{2,}", " ", formula.strip())
+        if not cleaned:
+            return None
+
+        normalized = re.sub(r"[^0-9-]", "", cleaned)
+        if not normalized:
+            return None
+
+        tokens = [token for token in normalized.split("-") if token]
+        if not tokens:
+            return None
+
+        total = 0
+        has_glass = False
+        for index, token in enumerate(tokens):
+            if index % 2 == 0 and token.isdigit():
+                total += int(token)
+                has_glass = True
+
+        return total if has_glass else None
+
     def has_spacer(self, formula: str) -> bool:
         """
         Returns True if formula contains a spacer frame marker (xH/xW/xН/..).
@@ -204,13 +233,24 @@ class Analyzer:
                 "width_round": w_round,
                 "height_round": h_round,
                 "marking": None,
-                "formulas": {}
+                "formulas": {},
+                "formula_details": {}
             }
 
         formulas = {
             "1k": [value for value in [rule.formula_1_1k, rule.formula_2_1k] if value],
             "2k": [value for value in [rule.formula_1_2k, rule.formula_2_2k] if value],
             "3k": [value for value in [rule.formula_1_3k, rule.formula_2_3k] if value],
+        }
+        formula_details = {
+            key: [
+                {
+                    "formula": formula,
+                    "total_thickness": self.get_formula_total_thickness(formula),
+                }
+                for formula in values
+            ]
+            for key, values in formulas.items()
         }
 
         return {
@@ -220,7 +260,8 @@ class Analyzer:
             "width_round": w_round,
             "height_round": h_round,
             "marking": rule.marking,
-            "formulas": formulas
+            "formulas": formulas,
+            "formula_details": formula_details,
         }
 
     async def check_slip(self, width: int, height: int, formula_elements: List[dict]) -> List[str]:
