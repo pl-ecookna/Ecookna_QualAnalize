@@ -169,8 +169,8 @@ class Analyzer:
 
     def get_formula_total_thickness(self, formula: Optional[str]) -> Optional[int]:
         """
-        Calculates total glass thickness from a slip formula like `4-16-4` or `6-16-6-14-4`.
-        Only glass positions are summed: 1st, 3rd, 5th, etc.
+        Calculates total glazing unit thickness from a slip formula like `4-16-4`
+        or `6-16-6-14-4` by summing all numeric segments, including spacers.
         """
         if not formula:
             return None
@@ -187,14 +187,11 @@ class Analyzer:
         if not tokens:
             return None
 
-        total = 0
-        has_glass = False
-        for index, token in enumerate(tokens):
-            if index % 2 == 0 and token.isdigit():
-                total += int(token)
-                has_glass = True
+        numeric_tokens = [int(token) for token in tokens if token.isdigit()]
+        if not numeric_tokens:
+            return None
 
-        return total if has_glass else None
+        return sum(numeric_tokens)
 
     def has_spacer(self, formula: str) -> bool:
         """

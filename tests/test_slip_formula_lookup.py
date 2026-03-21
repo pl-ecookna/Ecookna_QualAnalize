@@ -66,14 +66,14 @@ async def test_get_slip_formulas_by_size_returns_grouped_formulas():
     assert result["formulas"]["2k"] == ["4-10-4-10-4"]
     assert result["formulas"]["3k"] == ["4-8-4-8-4-8-4"]
     assert result["formula_details"]["1k"] == [
-        {"formula": "4-16-4", "total_thickness": 8},
-        {"formula": "6-16-4", "total_thickness": 10},
+        {"formula": "4-16-4", "total_thickness": 24},
+        {"formula": "6-16-4", "total_thickness": 26},
     ]
     assert result["formula_details"]["2k"] == [
-        {"formula": "4-10-4-10-4", "total_thickness": 12},
+        {"formula": "4-10-4-10-4", "total_thickness": 32},
     ]
     assert result["formula_details"]["3k"] == [
-        {"formula": "4-8-4-8-4-8-4", "total_thickness": 16},
+        {"formula": "4-8-4-8-4-8-4", "total_thickness": 40},
     ]
 
 
@@ -103,10 +103,10 @@ async def test_get_slip_formulas_by_size_returns_not_found_payload():
 @pytest.mark.parametrize(
     ("formula", "expected"),
     [
-        ("4-16-4", 8),
-        ("6-16-4", 10),
-        ("4-10-4-10-4", 12),
-        (" 8-14-8 ", 16),
+        ("4-16-4", 24),
+        ("6-16-4", 26),
+        ("4-10-4-10-4", 32),
+        (" 8-14-8 ", 30),
         ("", None),
         (None, None),
         ("abc", None),

@@ -18,16 +18,16 @@ test("formatSearchResultText includes thickness in copied report", () => {
         "3k": [],
       },
       formula_details: {
-        "1k": [{ formula: "8-14-8", total_thickness: 16 }],
-        "2k": [{ formula: "6-16-6-14-6", total_thickness: 18 }],
+        "1k": [{ formula: "8-14-8", total_thickness: 30 }],
+        "2k": [{ formula: "6-16-6-14-6", total_thickness: 48 }],
         "3k": [],
       },
     },
     null,
   )
 
-  assert.match(text, /8-14-8 \(16\)/)
-  assert.match(text, /6-16-6-14-6 \(18\)/)
+  assert.match(text, /8-14-8 \(30\)/)
+  assert.match(text, /6-16-6-14-6 \(48\)/)
 })
 
 test("formatSearchResultText skips thickness suffix when it is missing", () => {
