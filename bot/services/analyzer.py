@@ -10,7 +10,7 @@ from bot.services.directus import DirectusClient
 logger = logging.getLogger(__name__)
 
 FORMULA_SPLIT_RE = re.compile(r"(?<=[0-9A-Za-zА-Яа-я.,])[xх](?=[0-9A-Za-zА-Яа-я])")
-TEMPERED_FORMULA_RE = re.compile(r"\d+\s*(?:зак|з)", re.IGNORECASE)
+TEMPERED_FORMULA_RE = re.compile(r"зак(?![а-яёА-ЯЁ])", re.IGNORECASE)
 
 class Analyzer:
     def __init__(self, session: AsyncSession):
