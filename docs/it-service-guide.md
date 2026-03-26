@@ -16,7 +16,7 @@
 - Directus: [https://rules.entechai.ru](https://rules.entechai.ru)
 - PostgreSQL DSN: `postgresql+asyncpg://entechai:<DB_PASSWORD>@46.173.20.149:5433/entechai`
 
-Если у сервиса используется отдельный внутренний URL для API, отличный от публичного URL web-интерфейса, его нужно дополнить в этой секции отдельно.
+
 
 ## 2. Актуальный эксплуатационный контур
 
