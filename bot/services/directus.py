@@ -43,3 +43,56 @@ class DirectusClient:
                 response.raise_for_status()
                 data = await response.json()
                 return data
+
+    async def find_items(self, collection: str, params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """
+        Возвращает список записей Directus по фильтру/параметрам.
+        """
+        return await self.get_items(collection, params=params)
+
+    async def create_item(self, collection: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Создаёт запись в указанной коллекции.
+        """
+        url = f"{self.base_url}/items/{collection}"
+        headers = {
+            "Authorization": f"Bearer {self.token}",
+            "Content-Type": "application/json",
+        }
+
+        async with aiohttp.ClientSession() as session:
+            logger.debug("Creating item in %s", collection)
+            async with session.post(url, headers=headers, json=payload, ssl=self.verify_ssl) as response:
+                response.raise_for_status()
+                return await response.json()
+
+    async def update_item(self, collection: str, item_id: str | int, payload: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Обновляет запись по ID.
+        """
+        url = f"{self.base_url}/items/{collection}/{item_id}"
+        headers = {
+            "Authorization": f"Bearer {self.token}",
+            "Content-Type": "application/json",
+        }
+
+        async with aiohttp.ClientSession() as session:
+            logger.debug("Updating item %s/%s", collection, item_id)
+            async with session.patch(url, headers=headers, json=payload, ssl=self.verify_ssl) as response:
+                response.raise_for_status()
+                return await response.json()
+
+    async def delete_item(self, collection: str, item_id: str | int) -> None:
+        """
+        Удаляет запись по ID.
+        """
+        url = f"{self.base_url}/items/{collection}/{item_id}"
+        headers = {
+            "Authorization": f"Bearer {self.token}",
+            "Content-Type": "application/json",
+        }
+
+        async with aiohttp.ClientSession() as session:
+            logger.debug("Deleting item %s/%s", collection, item_id)
+            async with session.delete(url, headers=headers, ssl=self.verify_ssl) as response:
+                response.raise_for_status()

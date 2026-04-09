@@ -16,7 +16,12 @@ AS $function$
   SELECT
     ord,
     article,
-    CASE WHEN article ~* '^[HWНШ]' THEN 'frame' ELSE 'glass' END AS element_type,
+    CASE
+      WHEN article ~* '^[HWНШU]'
+        OR article ~* '^[A-Za-zА-Яа-я]+[HWНШU]\d+'
+      THEN 'frame'
+      ELSE 'glass'
+    END AS element_type,
     public.get_thickness(article) AS thickness
   FROM parts;
 $function$;

@@ -11,6 +11,8 @@ logger = logging.getLogger(__name__)
 
 FORMULA_SPLIT_RE = re.compile(r"(?<=[0-9A-Za-zА-Яа-я.,])[xх](?=[0-9A-Za-zА-Яа-я])")
 TEMPERED_FORMULA_RE = re.compile(r"зак(?![а-яёА-ЯЁ])", re.IGNORECASE)
+FRAME_ARTICLE_RE = re.compile(r"^[HWНШU]", re.IGNORECASE)
+FRAME_MID_TOKEN_RE = re.compile(r"^[A-Za-zА-Яа-я]+[HWНШU]\d+", re.IGNORECASE)
 
 class Analyzer:
     def __init__(self, session: AsyncSession):
@@ -92,9 +94,9 @@ class Analyzer:
                 continue
 
             # Determine type (Glass vs Frame)
-            # Logic from SQL: ^[HWНШ] -> frame, else glass
+            # Logic from SQL: ^[HWНШU] -> frame, else glass
             # Also common sense: frames usually start with letters indicating spacer
-            is_frame = bool(re.match(r"^[HWНШ]", article, re.IGNORECASE) or re.search(r"^[A-Za-z]+[HWНШ]\d+", article, re.IGNORECASE))
+            is_frame = self._is_frame_article(article)
             etype = "frame" if is_frame else "glass"
             
             thickness, is_triplex = self.get_thickness(article)
@@ -165,12 +167,14 @@ class Analyzer:
 
     def _calc_cam_count(self, formula: str) -> int:
         """
-        Calculates chamber count based on regex count of 'xH', 'xW' etc.
-        Logic: regexp_count(formula, '[xх][нНhHwW]')
+        Calculates chamber count based on regex count of 'xH', 'xW', 'xU' etc.
+        Logic: regexp_count(formula, '[xх][нНhHwWuU]')
         """
         if not formula:
             return 0
-        return len(re.findall(r"[xх][нНhHwW]", formula, re.IGNORECASE))
+
+        parts = [part.strip() for part in FORMULA_SPLIT_RE.split(formula) if part.strip()]
+        return sum(1 for part in parts if self._is_frame_article(part))
 
     def get_formula_total_thickness(self, formula: Optional[str]) -> Optional[int]:
         """
@@ -200,11 +204,19 @@ class Analyzer:
 
     def has_spacer(self, formula: str) -> bool:
         """
-        Returns True if formula contains a spacer frame marker (xH/xW/xН/..).
+        Returns True if formula contains a spacer frame marker (xH/xW/xU/xН/..).
         """
         if not formula:
             return False
-        return bool(re.search(r"[xх][нНhHwW]", formula, re.IGNORECASE))
+
+        parts = [part.strip() for part in FORMULA_SPLIT_RE.split(formula) if part.strip()]
+        return any(self._is_frame_article(part) for part in parts)
+
+    def _is_frame_article(self, article: str) -> bool:
+        """Returns True if token should be treated as spacer frame."""
+        if not article:
+            return False
+        return bool(FRAME_ARTICLE_RE.match(article) or FRAME_MID_TOKEN_RE.search(article))
 
     async def _find_size_control_rule(self, width: int, height: int) -> Tuple[Optional[SizeControl], int, int]:
         """Returns matching size_control rule with rounded dimensions."""

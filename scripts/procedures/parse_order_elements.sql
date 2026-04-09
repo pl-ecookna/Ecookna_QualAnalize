@@ -16,9 +16,16 @@ AS $function$
   SELECT
     ord,
     article,
-    CASE WHEN article ~* '^[HWНШ]' THEN 'frame' ELSE 'glass' END AS element_type,
     CASE
-      WHEN article ~* '^[HWНШ]' THEN article LIKE '%Ar'  -- как в JS: endsWith('Ar') (регистрозависимо)
+      WHEN article ~* '^[HWНШU]'
+        OR article ~* '^[A-Za-zА-Яа-я]+[HWНШU]\d+'
+      THEN 'frame'
+      ELSE 'glass'
+    END AS element_type,
+    CASE
+      WHEN article ~* '^[HWНШU]'
+        OR article ~* '^[A-Za-zА-Яа-я]+[HWНШU]\d+'
+      THEN article LIKE '%Ar'  -- как в JS: endsWith('Ar') (регистрозависимо)
       ELSE NULL
     END AS is_argon
   FROM parts;

@@ -31,15 +31,11 @@ BEGIN
   NEW.position_width_round := v_width_round;
   NEW.position_hight_round := v_height_round;
 
-  -- 2) Количество камер (xН/xH/xW, кириллица + латиница)
-  v_cam_count :=
-    COALESCE(
-      regexp_count(
-        coalesce(NEW.position_formula, ''),
-        '[xх][нНhHwW]'
-      ),
-      0
-    )::smallint;
+  -- 2) Количество камер: считаем элементы-рамки после разбиения формулы
+  SELECT count(*)::smallint
+  INTO v_cam_count
+  FROM public.parse_order_elements(coalesce(NEW.position_formula, ''))
+  WHERE element_type = 'frame';
 
   NEW.cam_count := v_cam_count;
 

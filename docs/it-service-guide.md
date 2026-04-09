@@ -215,10 +215,14 @@
 - ожидается без завершающего `/`;
 - пример:
   `https://rules.entechai.ru`
+- текущее значение в проекте:
+  `https://rules.entechai.ru`
 
 #### `DIRECTUS_TOKEN`
 
 - Bearer-токен для доступа к коллекциям Directus.
+- текущее значение в проекте:
+  `iFMQFlEt8kFIjCZr_al40Ou9UamtYP6E`
 
 ### 7.2. Необязательные
 
@@ -235,7 +239,7 @@
 BOT_TOKEN=telegram_bot_token
 DB_DSN=postgresql+asyncpg://entechai:<DB_PASSWORD>@46.173.20.149:5433/entechai
 DIRECTUS_URL=https://rules.entechai.ru
-DIRECTUS_TOKEN=directus_api_token
+DIRECTUS_TOKEN=iFMQFlEt8kFIjCZr_al40Ou9UamtYP6E
 LOG_LEVEL=INFO
 ```
 

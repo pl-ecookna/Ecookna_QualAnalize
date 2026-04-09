@@ -158,8 +158,10 @@ def test_analyzer_has_spacer_detects_single_glazing():
 
     assert analyzer.has_spacer("6LHSolarxW14RAL9005x4М1") is True
     assert analyzer.has_spacer("4ИxН14x4М1") is True
+    assert analyzer.has_spacer("8Vision71TзакxStructU18плArX:20Ux6М1") is True
     assert analyzer.has_spacer("М1_4мм.") is False
     assert analyzer.has_spacer("") is False
+    assert analyzer._calc_cam_count("8Vision71TзакxStructU18плArX:20Ux6М1xStructU12плArX:7x5.5.2StratosafeClear (55мм)") == 2
 
 
 def test_analyzer_parse_formula_does_not_treat_bronze_as_tempered():
@@ -182,6 +184,18 @@ def test_analyzer_uses_processing_flag_from_articles_cache_for_tempering():
     glasses = [element for element in elements if element["type"] == "glass"]
 
     assert [element["is_tempered"] for element in glasses] == [True, False]
+
+
+def test_analyzer_treats_xu_as_frame_marker():
+    analyzer = Analyzer(session=None)
+
+    elements = analyzer.parse_formula(
+        "8Vision71TзакxStructU18плArX:20Ux6М1xStructU12плArX:7x5.5.2StratosafeClear (55мм)",
+        is_outside=False,
+    )
+
+    assert [element["type"] for element in elements] == ["glass", "frame", "glass", "frame", "glass"]
+    assert analyzer.has_spacer("8Vision71TзакxStructU18плArX:20Ux6М1") is True
 
 
 PDF_FIXTURE_PATH = "/Users/romangaleev/Downloads/18-133-1041.pdf"

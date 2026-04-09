@@ -45,10 +45,20 @@ class PDFParser:
                 for page in pdf.pages:
                     text = page.extract_text() or ""
                     words = page.extract_words(use_text_flow=False, keep_blank_chars=False)
+                    tables_payload: List[Dict[str, Any]] = []
+                    for table in page.find_tables():
+                        table_rows = table.extract() or []
+                        tables_payload.append(
+                            {
+                                "bbox": table.bbox,
+                                "rows": table_rows,
+                            }
+                        )
                     page_payloads.append(
                         {
                             "text": text,
                             "words": words,
+                            "tables": tables_payload,
                         }
                     )
                     if text:
@@ -92,7 +102,7 @@ class PDFParser:
         return (
             has_x and ":" not in token
             or re.match(r"^[0-9]", token) is not None
-            or re.match(r"^[HWНШ]", token, re.IGNORECASE) is not None
+            or re.match(r"^[HWНШU]", token, re.IGNORECASE) is not None
         )
 
     @classmethod
@@ -197,21 +207,14 @@ class PDFParser:
 
     @classmethod
     def _parse_numbers_from_anchor(cls, anchor_row_text: str) -> Optional[Dict[str, Any]]:
-        match = cls.ANCHOR_RE.search(anchor_row_text)
+        match = re.search(r"(\d+)\s*[x×хХ]\s*(\d+)", anchor_row_text)
         if not match:
             return None
 
         try:
-            mass_val = 0.0
-            if match.group(5):
-                mass_val = float(match.group(5).replace(",", "."))
-
             return {
                 "position_width": int(match.group(1)),
                 "position_hight": int(match.group(2)),
-                "position_count": int(match.group(3)),
-                "position_area": float(match.group(4).replace(",", ".")),
-                "position_mass": mass_val,
             }
         except (ValueError, IndexError):
             return None
@@ -286,39 +289,13 @@ class PDFParser:
         if numbers is None:
             return None
 
-        # If mass is missing in anchor row, try to find it in other rows of this position
-        if numbers.get("position_mass") == 0.0:
-            for row in rows:
-                # 1. Try to find "Масса заполнения - 123.45" or similar
-                m_match = re.search(r"Масса\s*(?:заполнения)?\s*[-—]?\s*([\d.,]+)", row["text"], re.IGNORECASE)
-                if m_match:
-                    try:
-                        numbers["position_mass"] = float(m_match.group(1).replace(",", "."))
-                        break
-                    except ValueError:
-                        continue
-
-            if numbers.get("position_mass") == 0.0:
-                # 2. Try to find a numeric value at the end of the line which has the order number
-                for row in rows:
-                    if any(cls.NUMBER_RE.fullmatch(cls._word_text(w)) for w in row["words"]):
-                        row_words = [cls._word_text(w) for w in row["words"] if cls._word_text(w)]
-                        if len(row_words) > 1:
-                            last_word = row_words[-1].replace(",", ".")
-                            if re.match(r"^\d+(?:\.\d+)?$", last_word):
-                                try:
-                                    numbers["position_mass"] = float(last_word)
-                                except ValueError:
-                                    pass
-
         item = {
             "position_num": position_num.replace("\n", "").strip(),
             "position_formula": cls._normalize_formula(raw_formula),
-            "position_raskl": cls._extract_layout(rows),
             "is_oytside": cls._extract_is_outside(rows, raw_formula),
-            "raw_formula": cls._normalize_spaces(raw_formula),
+            "position_width": numbers["position_width"],
+            "position_hight": numbers["position_hight"],
         }
-        item.update(numbers)
         return item
 
     @classmethod
@@ -473,13 +450,81 @@ class PDFParser:
         return items
 
     @classmethod
+    def _parse_text_by_tables(cls, text: str) -> Optional[List[Dict[str, Any]]]:
+        if text != cls._last_extracted_text or not cls._last_extracted_pages:
+            return None
+
+        items: List[Dict[str, Any]] = []
+        table_used = False
+
+        for page_payload in cls._last_extracted_pages:
+            for table_payload in page_payload.get("tables", []):
+                rows = table_payload.get("rows") or []
+                if not rows:
+                    continue
+
+                header = rows[0]
+                try:
+                    number_idx = header.index("Номер")
+                    formula_idx = header.index("Формула")
+                    size_idx = header.index("Размер")
+                except ValueError:
+                    continue
+
+                table_used = True
+
+                for row in rows[1:]:
+                    if not row or number_idx >= len(row) or formula_idx >= len(row):
+                        continue
+
+                    number_cell = row[number_idx] or ""
+                    formula_cell = row[formula_idx] or ""
+                    size_cell = row[size_idx] if size_idx < len(row) else None
+
+                    if not number_cell.strip() or not formula_cell.strip():
+                        continue
+
+                    number_match = cls.NUMBER_RE.search(number_cell.replace("\n", " "))
+                    if not number_match:
+                        continue
+
+                    size_match = re.search(r"(\d+)\s*x\s*(\d+)", size_cell or "", re.IGNORECASE)
+                    if not size_match:
+                        size_match = re.search(r"(\d+)\s*[x×хХ]\s*(\d+)", size_cell or "", re.IGNORECASE)
+                    if not size_match:
+                        continue
+
+                    try:
+                        position_width = int(size_match.group(1))
+                        position_hight = int(size_match.group(2))
+                    except ValueError:
+                        continue
+
+                    position_num = number_match.group(1).replace("\n", "").strip()
+                    raw_formula = cls._normalize_spaces(formula_cell)
+
+                    position_formula = re.sub(r"\s+", "", raw_formula)
+
+                    item = {
+                        "position_num": position_num,
+                        "position_formula": position_formula,
+                        "position_width": position_width,
+                        "position_hight": position_hight,
+                        "is_oytside": cls._extract_is_outside([{"text": raw_formula, "words": []}], raw_formula),
+                    }
+                    items.append(item)
+
+        if not table_used:
+            return None
+
+        return items
+
+    @classmethod
     def _parse_text_by_regex(cls, text: str) -> List[Dict]:
         items = []
         blocks = cls.SPLIT_RE.split(text)
 
         for block in blocks:
-            layout_match = cls.LAYOUT_RE.search(block)
-            layout = layout_match.group(1).strip() if layout_match else "отсутствует"
             anchors = list(cls.ANCHOR_RE.finditer(block))
             last_end = 0
 
@@ -535,27 +580,6 @@ class PDFParser:
                 try:
                     width = int(anchor.group(1))
                     height = int(anchor.group(2))
-                    count = int(anchor.group(3))
-                    area = float(anchor.group(4).replace(",", "."))
-                    mass_text = anchor.group(5)
-                    mass = 0.0
-                    if mass_text:
-                        mass = float(mass_text.replace(",", "."))
-                    else:
-                        m_m = re.search(r"Масса\s*(?:заполнения)?\s*[-—]?\s*([\d.,]+)", post_context, re.IGNORECASE)
-                        if m_m:
-                            mass = float(m_m.group(1).replace(",", "."))
-                        else:
-                            lines = pre_context.split("\n")
-                            if lines:
-                                last_line = lines[-1].strip()
-                                if cls.NUMBER_RE.search(last_line):
-                                    parts = last_line.split()
-                                    if len(parts) > 1 and re.match(r"^\d+(?:\.\d+)?$", parts[-1].replace(",", ".")):
-                                        try:
-                                            mass = float(parts[-1].replace(",", "."))
-                                        except ValueError:
-                                            pass
                 except (ValueError, IndexError) as e:
                     logger.warning(f"Error parsing numbers for item {position_num}: {e}")
                     continue
@@ -564,14 +588,9 @@ class PDFParser:
                     {
                         "position_num": position_num,
                         "position_formula": position_formula,
-                        "position_raskl": layout,
                         "position_width": width,
                         "position_hight": height,
-                        "position_count": count,
-                        "position_area": area,
-                        "position_mass": mass,
                         "is_oytside": is_outside,
-                        "raw_formula": raw_formula_clean,
                     }
                 )
 
@@ -582,6 +601,10 @@ class PDFParser:
     @classmethod
     def parse_text(cls, text: str) -> List[Dict]:
         """Parses the extracted text into structural items."""
+        table_items = cls._parse_text_by_tables(text)
+        if table_items is not None:
+            return table_items
+
         geometry_items = cls._parse_text_by_geometry(text)
         if geometry_items is not None:
             return geometry_items
