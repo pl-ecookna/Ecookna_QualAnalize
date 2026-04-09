@@ -272,26 +272,35 @@ function PdfResultView({
       </div>
 
       {result.report_data.length > 0 ? (
-        <div className="space-y-2.5">
+        <div className="space-y-2">
           {result.report_data.map((item) => (
-            <div key={`${item.pos_num}-${item.size}`} className="rounded-2xl border border-border/70 bg-white/90 p-3">
-              <div className="flex items-start justify-between gap-3">
-                <div>
+            <div key={`${item.pos_num}-${item.size}`} className="rounded-2xl border border-border/70 bg-white/90 p-2.5">
+              <div className="flex items-start justify-between gap-2.5">
+                <div className="min-w-0">
                   <div className="text-base font-semibold">Позиция №{item.pos_num}</div>
                   <div className="text-sm text-muted-foreground">{item.size}</div>
                 </div>
                 <TriangleAlert className="size-4 text-destructive" />
               </div>
-              <div className="mt-2.5 space-y-1 text-sm">
-                <div><span className="font-medium">Формула:</span> {item.formula}</div>
-                <div><span className="font-medium">Открывание:</span> {item.is_outside ? "Наружу (формула перевернута)" : "Внутрь"}</div>
-                <div><span className="font-medium">Раскладка:</span> {item.raskl || "Нет"}</div>
+              <div className="mt-2 space-y-0.5 text-sm leading-5">
+                <div className="break-words">
+                  <span className="font-medium">Формула:</span>{" "}
+                  <span className="break-all">{item.formula}</span>
+                </div>
+                <div className="break-words">
+                  <span className="font-medium">Открывание:</span>{" "}
+                  {item.is_outside ? "Наружу (формула перевернута)" : "Внутрь"}
+                </div>
+                <div className="break-words">
+                  <span className="font-medium">Раскладка:</span>{" "}
+                  <span>{item.raskl || "Нет"}</span>
+                </div>
               </div>
-              <ul className="mt-2.5 space-y-1.5">
+              <ul className="mt-2 space-y-1.5">
                 {item.errors.map((issue) => (
-                  <li key={issue} className="flex items-start gap-3 rounded-xl bg-destructive/5 px-3 py-1.5 text-sm">
+                  <li key={issue} className="flex items-start gap-2.5 rounded-xl bg-destructive/5 px-3 py-1.5 text-sm leading-5">
                     <span className="mt-1 size-2 rounded-full bg-destructive" />
-                    <span>{issue}</span>
+                    <span className="min-w-0 break-words">{issue}</span>
                   </li>
                 ))}
               </ul>
@@ -628,7 +637,7 @@ export default function App() {
       </div>
 
       <Dialog open={resultDialogOpen} onOpenChange={setResultDialogOpen}>
-        <DialogContent className="max-w-4xl rounded-[28px] border-border/70 bg-background/98 p-0 shadow-2xl">
+        <DialogContent className="w-[min(67rem,calc(100vw-2rem))] max-w-[67rem] rounded-[28px] border-border/70 bg-background/98 p-0 shadow-2xl">
           <DialogHeader className="border-b border-border/70 bg-[linear-gradient(135deg,rgba(39,174,96,0.12),rgba(255,255,255,0.92))] px-6 py-5 text-left">
             <div className="space-y-3">
               <DialogTitle className="text-3xl font-semibold tracking-tight">
@@ -677,10 +686,10 @@ export default function App() {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="max-h-[75vh] overflow-auto p-4">
+          <div className="max-h-[75vh] overflow-auto p-3">
             {resultText ? (
-              <div className="rounded-[24px] border border-border/70 bg-secondary/25 p-2.5">
-                <div className="rounded-[18px] border border-border/70 bg-white/90 p-3.5">
+              <div className="rounded-[24px] border border-border/70 bg-secondary/25 p-2">
+                <div className="rounded-[18px] border border-border/70 bg-white/90 p-3">
                   {activeResult === "search" ? (
                     <SearchResultView result={searchResult} error={searchError} />
                   ) : (
