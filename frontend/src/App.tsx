@@ -296,10 +296,10 @@ function PdfResultView({
                   <span>{item.raskl || "Нет"}</span>
                 </div>
               </div>
-              <ul className="mt-2 space-y-1.5">
+              <ul className="mt-2 space-y-1">
                 {item.errors.map((issue) => (
-                  <li key={issue} className="flex items-start gap-2.5 rounded-xl bg-destructive/5 px-3 py-1.5 text-sm leading-5">
-                    <span className="mt-1 size-2 rounded-full bg-destructive" />
+                  <li key={issue} className="flex items-start gap-2 rounded-xl bg-destructive/5 px-2.5 py-1 text-xs leading-4 sm:text-sm">
+                    <span className="mt-1 size-1.5 rounded-full bg-destructive" />
                     <span className="min-w-0 break-words">{issue}</span>
                   </li>
                 ))}
