@@ -141,6 +141,27 @@ HSolar (40 мм)
     assert items[0]["is_oytside"] is True
 
 
+def test_pdf_parser_detects_outside_in_table_row_context():
+    text = """Заполнения 88-127-1217 от 08.04.2026
+Кол-
+Номер Формула Размер Площадь Масса
+во
+88-127-1217/1/32
+KLV-Standart:Вх.Дверь:
+Вид СНАРУЖИ на себя
+5закxН14x5закxН10x6М1 (40 мм) 182x2070 1 0.38 17.31
+Раскладка отсутствует
+Итого по изделию:
+Количество элементов - 1
+"""
+
+    items = PDFParser.parse_text(text)
+
+    assert len(items) == 1
+    assert items[0]["position_num"] == "88-127-1217/1/32"
+    assert items[0]["is_oytside"] is True
+
+
 def test_analyzer_parse_formula_does_not_split_on_vh_in_service_text():
     analyzer = Analyzer(session=None)
 

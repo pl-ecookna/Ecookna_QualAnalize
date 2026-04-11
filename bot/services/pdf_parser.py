@@ -292,6 +292,7 @@ class PDFParser:
         item = {
             "position_num": position_num.replace("\n", "").strip(),
             "position_formula": cls._normalize_formula(raw_formula),
+            "raw_formula": raw_formula,
             "is_oytside": cls._extract_is_outside(rows, raw_formula),
             "position_width": numbers["position_width"],
             "position_hight": numbers["position_hight"],
@@ -504,13 +505,14 @@ class PDFParser:
                     raw_formula = cls._normalize_spaces(formula_cell)
 
                     position_formula = re.sub(r"\s+", "", raw_formula)
+                    row_text = " ".join(str(cell or "") for cell in row)
 
                     item = {
                         "position_num": position_num,
                         "position_formula": position_formula,
                         "position_width": position_width,
                         "position_hight": position_hight,
-                        "is_oytside": cls._extract_is_outside([{"text": raw_formula, "words": []}], raw_formula),
+                        "is_oytside": cls._extract_is_outside([{"text": row_text, "words": []}], raw_formula),
                     }
                     items.append(item)
 
