@@ -14,6 +14,7 @@ from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, field_validator
 
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import text
 
 # Reuse bot components
 from bot.database.database import get_session
@@ -64,6 +65,14 @@ def parse_size_input(size_value: str) -> tuple[int, int]:
 
     return width, height
 
+
+async def ensure_database_available(session: AsyncSession) -> None:
+    try:
+        await session.execute(text("SELECT 1"))
+    except Exception as exc:
+        logger.error("Database availability check failed: %s", exc, exc_info=True)
+        raise HTTPException(status_code=503, detail="База данных недоступна")
+
 @app.get("/", response_class=HTMLResponse)
 async def read_root(request: Request):
     frontend_index = os.path.join(FRONTEND_DIST_DIR, "index.html")
@@ -78,6 +87,7 @@ async def get_slip_formulas(
     session: AsyncSession = Depends(get_session)
 ):
     width, height = parse_size_input(payload.size)
+    await ensure_database_available(session)
 
     analyzer = Analyzer(session)
     result = await analyzer.get_slip_formulas_by_size(width, height)
@@ -104,6 +114,8 @@ async def check_file(
 
     temp_path = None
     try:
+        await ensure_database_available(session)
+
         # 1. Save uploaded file to temp
         fd, temp_path = tempfile.mkstemp(suffix=".pdf")
         os.close(fd)

@@ -97,6 +97,10 @@ function formatPdfResultText(result: PdfCheckResponse | null, error: string | nu
   return lines.join("\n")
 }
 
+function isDatabaseUnavailableError(error: string | null) {
+  return Boolean(error && error.toLowerCase().includes("база данных недоступна"))
+}
+
 function SearchResultView({
   result,
   error,
@@ -105,11 +109,16 @@ function SearchResultView({
   error: string | null
 }) {
   if (error) {
+    const dbUnavailable = isDatabaseUnavailableError(error)
     return (
       <Alert variant="destructive" className="rounded-2xl border-destructive/25 bg-destructive/5">
         <OctagonAlert className="size-4" />
-        <AlertTitle>Ошибка подбора</AlertTitle>
-        <AlertDescription>{error}</AlertDescription>
+        <AlertTitle>{dbUnavailable ? "База данных недоступна" : "Ошибка подбора"}</AlertTitle>
+        <AlertDescription>
+          {dbUnavailable
+            ? "Проверка не выполнена: сервис не смог обратиться к PostgreSQL. Попробуйте повторить позже."
+            : error}
+        </AlertDescription>
       </Alert>
     )
   }
@@ -211,11 +220,16 @@ function PdfResultView({
   error: string | null
 }) {
   if (error) {
+    const dbUnavailable = isDatabaseUnavailableError(error)
     return (
       <Alert variant="destructive" className="rounded-2xl border-destructive/25 bg-destructive/5">
         <OctagonAlert className="size-4" />
-        <AlertTitle>Ошибка проверки PDF</AlertTitle>
-        <AlertDescription>{error}</AlertDescription>
+        <AlertTitle>{dbUnavailable ? "База данных недоступна" : "Ошибка проверки PDF"}</AlertTitle>
+        <AlertDescription>
+          {dbUnavailable
+            ? "Проверка не выполнена: сервис не смог обратиться к PostgreSQL. Попробуйте повторить позже."
+            : error}
+        </AlertDescription>
       </Alert>
     )
   }
