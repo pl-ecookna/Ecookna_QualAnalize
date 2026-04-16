@@ -8,9 +8,9 @@ class Settings(BaseSettings):
     BOT_TOKEN: str
     DB_DSN: PostgresDsn
     
-    # Directus settings
-    DIRECTUS_URL: str
-    DIRECTUS_TOKEN: str
+    # Directus settings are optional now; runtime reads справочники from PostgreSQL.
+    DIRECTUS_URL: str = ""
+    DIRECTUS_TOKEN: str = ""
     
     # Optional: Log level
     LOG_LEVEL: str = "INFO"

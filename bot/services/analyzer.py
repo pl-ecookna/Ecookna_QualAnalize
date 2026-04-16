@@ -3,9 +3,7 @@ import re
 from typing import List, Optional, Tuple
 from sqlalchemy import select, and_, or_
 from sqlalchemy.ext.asyncio import AsyncSession
-from bot.database.models import Film, SizeControl, QualPos, QualIssue
-from bot.config import settings
-from bot.services.directus import DirectusClient
+from bot.database.models import Film, ArtRule, SizeControl, QualPos, QualIssue
 
 logger = logging.getLogger(__name__)
 
@@ -19,36 +17,38 @@ class Analyzer:
         self.session = session
         self._films_cache: dict = {}
         self._articles_cache: dict = {}
-        self.directus = DirectusClient(base_url=settings.DIRECTUS_URL, token=settings.DIRECTUS_TOKEN, verify_ssl=False)
 
     async def load_films(self):
-        """Loads films from Directus to cache dict."""
+        """Loads films from PostgreSQL to cache dict."""
+        if self.session is None:
+            logger.warning("Skipping films load: no DB session available.")
+            return
         try:
-            response = await self.directus.get_items("films", params={"limit": -1})
-            data = response.get("data", [])
-            for item in data:
-                if item.get("films_article"):
-                    article = item["films_article"].strip()
-                    film_type = item.get("type_of_film", "")
-                    if not film_type:
-                        film_type = item.get("films_type", "")
+            stmt = select(Film.films_article, Film.type_of_film, Film.films_type)
+            result = await self.session.execute(stmt)
+            for films_article, type_of_film, films_type in result.all():
+                if films_article:
+                    article = films_article.strip()
+                    film_type = type_of_film or films_type or ""
                     self._films_cache[article] = film_type
-            logger.info(f"Loaded {len(self._films_cache)} films from Directus.")
+            logger.info(f"Loaded {len(self._films_cache)} films from PostgreSQL.")
         except Exception as e:
-            logger.error(f"Failed to load films from Directus: {e}")
+            logger.error(f"Failed to load films from PostgreSQL: {e}")
 
     async def load_articles(self):
-        """Loads articles from Directus to cache."""
+        """Loads articles from PostgreSQL to cache."""
+        if self.session is None:
+            logger.warning("Skipping articles load: no DB session available.")
+            return
         try:
-            response = await self.directus.get_items("art_rules", params={"limit": -1})
-            data = response.get("data", [])
-            for item in data:
-                if item.get("glass_article"):
-                    # Cache by article name
-                    self._articles_cache[item["glass_article"].strip()] = item
-            logger.info(f"Loaded {len(self._articles_cache)} articles from Directus.")
+            stmt = select(ArtRule)
+            result = await self.session.execute(stmt)
+            for item in result.scalars().all():
+                if item.glass_article:
+                    self._articles_cache[item.glass_article.strip()] = item
+            logger.info(f"Loaded {len(self._articles_cache)} articles from PostgreSQL.")
         except Exception as e:
-            logger.error(f"Failed to load articles from Directus: {e}")
+            logger.error(f"Failed to load articles from PostgreSQL: {e}")
 
     def get_thickness(self, p: str) -> Tuple[int, bool]:
         """Extracts thickness and determines if it's a triplex from article string."""
@@ -109,7 +109,7 @@ class Analyzer:
                 
                 # Проверка в кэше статей (существующая логика)
                 if not is_tempered and article in self._articles_cache:
-                    processing = self._articles_cache[article].get("type_of_processing", "")
+                    processing = getattr(self._articles_cache[article], "type_of_processing", "") or ""
                     if processing and processing.lower() == "закаленное":
                         is_tempered = True
             

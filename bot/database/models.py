@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Optional, List
 from sqlalchemy import String, Integer, BigInteger, Float, Boolean, Text, ForeignKey, func, DateTime
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy.dialects.postgresql import JSONB, TIMESTAMP
+from sqlalchemy.dialects.postgresql import JSONB, TIMESTAMP, UUID
 from bot.database.database import Base
 
 class Film(Base):
@@ -18,6 +18,24 @@ class Film(Base):
     # Timestamps
     date_created: Mapped[Optional[datetime]] = mapped_column(TIMESTAMP(timezone=True))
     date_updated: Mapped[Optional[datetime]] = mapped_column(TIMESTAMP(timezone=True))
+
+
+class ArtRule(Base):
+    __tablename__ = 'art_rules'
+    __table_args__ = {'schema': 'public'}
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_created: Mapped[Optional[str]] = mapped_column(UUID(as_uuid=False))
+    date_created: Mapped[Optional[datetime]] = mapped_column(TIMESTAMP(timezone=True))
+    user_updated: Mapped[Optional[str]] = mapped_column(UUID(as_uuid=False))
+    date_updated: Mapped[Optional[datetime]] = mapped_column(TIMESTAMP(timezone=True))
+    glass_article: Mapped[Optional[str]] = mapped_column(String(255))
+    glass_type: Mapped[Optional[str]] = mapped_column(String(255))
+    type_of_glass: Mapped[Optional[str]] = mapped_column(String(255))
+    type_of_processing: Mapped[Optional[str]] = mapped_column(String(255))
+    surface: Mapped[Optional[str]] = mapped_column(String(255))
+    note: Mapped[Optional[str]] = mapped_column(Text)
+    analog_list: Mapped[Optional[int]] = mapped_column(Integer)
 
 
 class SizeControl(Base):
