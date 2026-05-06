@@ -219,6 +219,22 @@ def test_analyzer_treats_xu_as_frame_marker():
     assert analyzer.has_spacer("8Vision71TзакxStructU18плArX:20Ux6М1") is True
 
 
+def test_analyzer_splits_after_film_parentheses_and_filters_film():
+    analyzer = Analyzer(session=None)
+    analyzer._films_cache = {
+        "Р1А(200мкм)": "Ударостойкая пленка",
+    }
+
+    elements = analyzer.parse_formula(
+        "6М1xР1А(200мкм)xН12x5М1xН12x6LPPremiumTзак(41мм)",
+        is_outside=False,
+    )
+
+    assert [element["article"] for element in elements] == ["6М1", "Н12", "5М1", "Н12", "6LPPremiumTзак(41мм)"]
+    assert [element["type"] for element in elements] == ["glass", "frame", "glass", "frame", "glass"]
+    assert [element["thickness"] for element in elements] == [6, 12, 5, 12, 6]
+
+
 PDF_FIXTURE_PATH = "/Users/romangaleev/Downloads/18-133-1041.pdf"
 
 

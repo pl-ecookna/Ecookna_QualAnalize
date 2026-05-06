@@ -7,7 +7,7 @@ from bot.database.models import Film, ArtRule, SizeControl, QualPos, QualIssue
 
 logger = logging.getLogger(__name__)
 
-FORMULA_SPLIT_RE = re.compile(r"(?<=[0-9A-Za-zА-Яа-я.,])[xх](?=[0-9A-Za-zА-Яа-я])")
+FORMULA_SPLIT_RE = re.compile(r"(?<=[0-9A-Za-zА-Яа-я.,)])[xх](?=[0-9A-Za-zА-Яа-я])")
 TEMPERED_FORMULA_RE = re.compile(r"зак(?![а-яёА-ЯЁ])", re.IGNORECASE)
 FRAME_ARTICLE_RE = re.compile(r"^[HWНШU]", re.IGNORECASE)
 FRAME_MID_TOKEN_RE = re.compile(r"^[A-Za-zА-Яа-я]+[HWНШU]\d+", re.IGNORECASE)
@@ -109,7 +109,11 @@ class Analyzer:
                 
                 # Проверка в кэше статей (существующая логика)
                 if not is_tempered and article in self._articles_cache:
-                    processing = getattr(self._articles_cache[article], "type_of_processing", "") or ""
+                    cached_article = self._articles_cache[article]
+                    if isinstance(cached_article, dict):
+                        processing = cached_article.get("type_of_processing", "") or ""
+                    else:
+                        processing = getattr(cached_article, "type_of_processing", "") or ""
                     if processing and processing.lower() == "закаленное":
                         is_tempered = True
             
