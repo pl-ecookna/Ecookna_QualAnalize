@@ -158,7 +158,36 @@
 Назначение:
 
 - журнал обработанных файлов;
-- хранение имени файла, источника, Telegram-метаданных и фрагмента исходного текста.
+- хранение имени файла, источника, Telegram-метаданных и фрагмента исходного текста;
+- хранение агрегатов по результату анализа файла:
+  - `total_items`
+  - `issues_count`
+  - `has_issues`
+  - `analysis_status`
+
+Как получить накопительный итог:
+
+```sql
+SELECT
+  count(*) FILTER (WHERE analysis_status IN ('success', 'issues_found', 'warning')) AS analyzed_files,
+  count(*) FILTER (WHERE has_issues IS TRUE) AS files_with_issues
+FROM public.qual_analize_files;
+```
+
+Как получить историю по файлам:
+
+```sql
+SELECT
+  id,
+  created_at,
+  file_name,
+  total_items,
+  issues_count,
+  has_issues,
+  analysis_status
+FROM public.qual_analize_files
+ORDER BY id DESC;
+```
 
 #### `qual_analize_pos`
 

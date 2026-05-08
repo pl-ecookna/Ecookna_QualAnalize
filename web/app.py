@@ -132,7 +132,23 @@ async def check_file(
             logger.error(f"Parsing error: {e}", exc_info=True)
             raise HTTPException(status_code=500, detail=f"PDF Parsing failed: {str(e)}")
 
+        qfile = QualFile(
+            file_name=file.filename,
+            file_path="web_upload",
+            tg_username="web_user",
+            tg_chatid=0,
+            full_raw=full_text[:50000],
+            total_items=len(items),
+            issues_count=0,
+            has_issues=False,
+            analysis_status="warning" if not items else "processing",
+        )
+        session.add(qfile)
+        await session.flush()
+
         if not items:
+            qfile.responce = "Не удалось извлечь позиции из файла. Вышлите pdf файл из StartОкна: Печать/Резерв/3.4 Заполнения"
+            await session.commit()
             return JSONResponse(content={
                 "status": "warning", 
                 "message": "Не удалось извлечь позиции из файла. Вышлите pdf файл из StartОкна: Печать/Резерв/3.4 Заполнения",
@@ -148,17 +164,6 @@ async def check_file(
         
         report_lines = []
         issues_count = 0
-        
-        # Save File Record (mark as uploaded from web)
-        qfile = QualFile(
-            file_name=file.filename,
-            file_path="web_upload",
-            tg_username="web_user",
-            tg_chatid=0,
-            full_raw=full_text[:50000]
-        )
-        session.add(qfile)
-        await session.flush()
         
         for item in items:
             # Skip slip analysis for single glazing (no spacer frame in formula)
@@ -222,10 +227,17 @@ async def check_file(
                     "errors": error_details
                 })
 
+        status = "success" if issues_count == 0 else "issues_found"
+        qfile.total_items = len(items)
+        qfile.issues_count = issues_count
+        qfile.has_issues = issues_count > 0
+        qfile.analysis_status = status
+        qfile.responce = status
+
         await session.commit()
         
         return JSONResponse(content={
-            "status": "success" if issues_count == 0 else "issues_found",
+            "status": status,
             "file_name": file.filename,
             "total_items": len(items),
             "issues_count": issues_count,

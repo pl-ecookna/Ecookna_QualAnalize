@@ -75,6 +75,10 @@ class QualFile(Base):
     rules: Mapped[Optional[str]] = mapped_column(Text)
     used_prompt: Mapped[Optional[str]] = mapped_column(Text)
     full_raw: Mapped[Optional[str]] = mapped_column(Text)
+    total_items: Mapped[Optional[int]] = mapped_column(Integer)
+    issues_count: Mapped[Optional[int]] = mapped_column(Integer)
+    has_issues: Mapped[Optional[bool]] = mapped_column(Boolean)
+    analysis_status: Mapped[Optional[str]] = mapped_column(Text)
 
     positions: Mapped[List["QualPos"]] = relationship("QualPos", back_populates="file", cascade="all, delete-orphan")
 

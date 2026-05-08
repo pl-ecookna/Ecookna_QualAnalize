@@ -47,7 +47,23 @@ async def process_pdf(bot: Bot, message: types.Message, file_id: str, file_name:
             await status_msg.edit_text(f"Ошибка при обработке PDF: {e}")
             return
 
+        qfile = QualFile(
+            file_name=file_name,
+            file_path=file_id, # store tg file id or path? Telegram IDs are temporaryish usually, but okay for history ref
+            tg_username=message.from_user.username,
+            tg_chatid=message.chat.id,
+            full_raw=full_text[:50000], # limit size
+            total_items=len(items),
+            issues_count=0,
+            has_issues=False,
+            analysis_status="warning" if not items else "processing",
+        )
+        session.add(qfile)
+        await session.flush() # get ID
+
         if not items:
+            qfile.responce = "Не удалось извлечь позиции из файла. Вышлите pdf файл из StartОкна: Печать/Резерв/3.4 Заполнения"
+            await session.commit()
             await status_msg.edit_text("Не удалось извлечь позиции из файла. Вышлите pdf файл из StartОкна: Печать/Резерв/3.4 Заполнения")
             return
 
@@ -61,17 +77,6 @@ async def process_pdf(bot: Bot, message: types.Message, file_id: str, file_name:
         # Determine Report Data
         report_lines = []
         issues_count = 0
-        
-        # Save File Record
-        qfile = QualFile(
-            file_name=file_name,
-            file_path=file_id, # store tg file id or path? Telegram IDs are temporaryish usually, but okay for history ref
-            tg_username=message.from_user.username,
-            tg_chatid=message.chat.id,
-            full_raw=full_text[:50000] # limit size
-        )
-        session.add(qfile)
-        await session.flush() # get ID
         
         for item in items:
             # Skip slip analysis for single glazing (no spacer frame in formula)
@@ -147,11 +152,16 @@ async def process_pdf(bot: Bot, message: types.Message, file_id: str, file_name:
                     )
                     session.add(issue)
 
-        await session.commit()
-        
         # 4. Send Report
         # Ensure filename is also escaped for the report header
         final_text = generate_report_text(html.escape(file_name), len(items), report_lines, issues_count)
+        qfile.total_items = len(items)
+        qfile.issues_count = issues_count
+        qfile.has_issues = issues_count > 0
+        qfile.analysis_status = "issues_found" if issues_count > 0 else "success"
+        qfile.responce = final_text
+
+        await session.commit()
         
         await status_msg.edit_text(final_text, parse_mode="HTML")
 

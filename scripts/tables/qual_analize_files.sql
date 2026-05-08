@@ -16,5 +16,9 @@ CREATE TABLE entechai.public.qual_analize_files (
 	rules text,
 	used_prompt text,
 	full_raw text,
+	total_items int4,
+	issues_count int4,
+	has_issues bool,
+	analysis_status text,
 	CONSTRAINT qual_analize_files_pkey PRIMARY KEY (id)
 );

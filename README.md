@@ -39,7 +39,7 @@
 
 | Таблица | Описание |
 | :--- | :--- |
-| **`qual_analize_files`** | Журнал обработанных файлов. Хранит метаданные (имя файла, chat_id пользователя), сырой ответ парсера и примененные правила. |
+| **`qual_analize_files`** | Журнал обработанных файлов. Хранит метаданные, сырой ответ парсера и агрегаты результата по файлу: `total_items`, `issues_count`, `has_issues`, `analysis_status`. |
 | **`qual_analize_pos`** | Детализированные данные по каждой позиции заказа. Содержит: размеры (сырые/округленные), формулу, артикулы (JSON), статус проверки (`overall_status`) и ссылки на таблицу слипания (`f1`, `f2`). |
 | **`qual_analize_pos_issues`** | Найденные ошибки и предупреждения. Привязаны к позиции (`pos_id`). Поля: `issue_code`, `severity` (error/warning), `message`. |
 | **`art_rules`** | Справочник артикулов. Содержит свойства стекол (тип, обработка, покрытие) для проверки соответствия. |
@@ -103,3 +103,12 @@
 -   [Инструкция пользователя](docs/user-guide.md)
 -   [Описание системы для ИТ-службы](docs/it-service-guide.md)
 -   [Список реализованных контролей](docs/implemented-controls.md)
+
+## 📈 Как получить накопительный итог по файлам
+
+```sql
+SELECT
+  count(*) FILTER (WHERE analysis_status IN ('success', 'issues_found', 'warning')) AS analyzed_files,
+  count(*) FILTER (WHERE has_issues IS TRUE) AS files_with_issues
+FROM public.qual_analize_files;
+```
