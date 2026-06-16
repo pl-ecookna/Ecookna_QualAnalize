@@ -502,9 +502,24 @@ class PDFParser:
                         continue
 
                     position_num = number_match.group(1).replace("\n", "").strip()
+
+                    number_suffix = number_cell[number_match.end():]
+                    formula_prefix_tokens = []
+                    for tok in cls._normalize_spaces(number_suffix).split():
+                        if cls._is_service_token(tok):
+                            break
+                        if re.match(r"^[0-9]+[A-Za-zА-Яа-я]", tok) or re.match(r"^[A-Za-zА-Яа-я]+[xх]", tok, re.IGNORECASE):
+                            formula_prefix_tokens.append(tok)
+                        else:
+                            break
+                    formula_prefix = "".join(formula_prefix_tokens)
+
                     raw_formula = cls._normalize_spaces(formula_cell)
+                    if formula_prefix:
+                        raw_formula = formula_prefix + raw_formula
 
                     position_formula = re.sub(r"\s+", "", raw_formula)
+                    position_formula = re.sub(r"\(\d+\s*мм\)$", "", position_formula)
                     row_text = " ".join(str(cell or "") for cell in row)
 
                     item = {
@@ -603,13 +618,13 @@ class PDFParser:
     @classmethod
     def parse_text(cls, text: str) -> List[Dict]:
         """Parses the extracted text into structural items."""
-        table_items = cls._parse_text_by_tables(text)
-        if table_items is not None:
-            return table_items
-
         geometry_items = cls._parse_text_by_geometry(text)
         if geometry_items is not None:
             return geometry_items
+
+        table_items = cls._parse_text_by_tables(text)
+        if table_items is not None:
+            return table_items
 
         if text == cls._last_extracted_text and cls._last_extracted_pages:
             logger.warning("Geometry parser unavailable for this PDF page layout, falling back to regex parser.")
