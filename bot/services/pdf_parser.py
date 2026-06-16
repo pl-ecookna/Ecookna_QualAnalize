@@ -256,7 +256,7 @@ class PDFParser:
 
             if anchor_row is None:
                 anchor_words = [
-                    word for word in row["words"] if float(word["x0"]) >= formula_left and float(word["x1"]) <= size_left + 220
+                    word for word in row["words"] if float(word["x0"]) >= formula_left and float(word["x1"]) <= size_left + 60
                 ]
                 anchor_text = " ".join(cls._word_text(word) for word in anchor_words)
                 if cls.ANCHOR_RE.search(anchor_text):
