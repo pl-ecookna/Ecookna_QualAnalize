@@ -2,17 +2,20 @@ import asyncio
 import logging
 import os
 import sys
+from dotenv import load_dotenv
 
 # Добавляем корневую директорию проекта в путь
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from bot.services.directus import DirectusClient
 
+load_dotenv()
+
 logging.basicConfig(level=logging.DEBUG)
 
 async def test_directus():
-    url = "https://rules.entechai.ru"
-    token = "ayLIDVMRT_5jmMZ1INwBlQ8p41mNSuYZ"
+    url = os.environ["DIRECTUS_URL"]
+    token = os.environ["DIRECTUS_TOKEN"]
     
     client = DirectusClient(base_url=url, token=token, verify_ssl=False)
     

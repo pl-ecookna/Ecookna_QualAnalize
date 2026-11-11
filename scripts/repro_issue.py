@@ -5,6 +5,7 @@ import logging
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import select, and_, or_
+from dotenv import load_dotenv
 
 # Add project root to sys.path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -18,7 +19,8 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # DB Config
-DB_DSN = "postgresql+asyncpg://entechai:entechai@46.173.20.149:5433/entechai"
+load_dotenv()
+DB_DSN = os.environ["DB_DSN"]
 
 async def test_parsing_and_rule():
     file_path = "docs/examples/00-151-1038.pdf"

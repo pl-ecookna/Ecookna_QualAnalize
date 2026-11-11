@@ -250,8 +250,7 @@ ORDER BY id DESC;
 #### `DIRECTUS_TOKEN`
 
 - Bearer-токен для доступа к коллекциям Directus.
-- текущее значение в проекте:
-  `iFMQFlEt8kFIjCZr_al40Ou9UamtYP6E`
+- значение задаётся в локальном `.env` или настройках окружения; в репозитории не хранится.
 
 ### 7.2. Необязательные
 
@@ -268,7 +267,7 @@ ORDER BY id DESC;
 BOT_TOKEN=telegram_bot_token
 DB_DSN=postgresql+asyncpg://entechai:<DB_PASSWORD>@46.173.20.149:5433/entechai
 DIRECTUS_URL=https://rules.entechai.ru
-DIRECTUS_TOKEN=iFMQFlEt8kFIjCZr_al40Ou9UamtYP6E
+DIRECTUS_TOKEN=<DIRECTUS_TOKEN>
 LOG_LEVEL=INFO
 ```
 
