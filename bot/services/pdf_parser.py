@@ -52,6 +52,10 @@ class PDFParser:
                             {
                                 "bbox": table.bbox,
                                 "rows": table_rows,
+                                "row_geometry": [
+                                    {"bbox": row.bbox, "cells": row.cells}
+                                    for row in table.rows
+                                ],
                             }
                         )
                     page_payloads.append(
@@ -246,6 +250,7 @@ class PDFParser:
     ) -> Optional[Dict[str, Any]]:
         number_row = None
         anchor_row = None
+        anchor_text = ""
         for row in rows:
             if number_row is None:
                 for word in row["words"]:
@@ -255,12 +260,16 @@ class PDFParser:
                         break
 
             if anchor_row is None:
-                anchor_words = [
-                    word for word in row["words"] if float(word["x0"]) >= formula_left and float(word["x1"]) <= size_left + 60
-                ]
-                anchor_text = " ".join(cls._word_text(word) for word in anchor_words)
-                if cls.ANCHOR_RE.search(anchor_text):
-                    anchor_row = row
+                for index, word in enumerate(row["words"]):
+                    if (float(word["x0"]) + float(word["x1"])) / 2 < size_left:
+                        continue
+                    if not cls.SIZE_TOKEN_RE.fullmatch(cls._word_text(word)):
+                        continue
+                    candidate = " ".join(cls._word_text(part) for part in row["words"][index:])
+                    if cls.ANCHOR_RE.match(candidate):
+                        anchor_row = row
+                        anchor_text = candidate
+                        break
 
             if number_row is not None and anchor_row is not None:
                 break
@@ -285,7 +294,7 @@ class PDFParser:
         if not raw_formula:
             return None
 
-        numbers = cls._parse_numbers_from_anchor(anchor_row["text"])
+        numbers = cls._parse_numbers_from_anchor(anchor_text)
         if numbers is None:
             return None
 
@@ -474,7 +483,9 @@ class PDFParser:
 
                 table_used = True
 
-                for row in rows[1:]:
+                row_geometry = table_payload.get("row_geometry") or []
+                page_words = page_payload.get("words") or []
+                for row_index, row in enumerate(rows[1:], start=1):
                     if not row or number_idx >= len(row) or formula_idx >= len(row):
                         continue
 
@@ -482,7 +493,7 @@ class PDFParser:
                     formula_cell = row[formula_idx] or ""
                     size_cell = row[size_idx] if size_idx < len(row) else None
 
-                    if not number_cell.strip() or not formula_cell.strip():
+                    if not number_cell.strip():
                         continue
 
                     number_match = cls.NUMBER_RE.search(number_cell.replace("\n", " "))
@@ -503,23 +514,40 @@ class PDFParser:
 
                     position_num = number_match.group(1).replace("\n", "").strip()
 
-                    number_suffix = number_cell[number_match.end():]
-                    formula_prefix_tokens = []
-                    for tok in cls._normalize_spaces(number_suffix).split():
-                        if cls._is_service_token(tok):
-                            break
-                        if re.match(r"^[0-9]+[A-Za-zА-Яа-я]", tok) or re.match(r"^[A-Za-zА-Яа-я]+[xх]", tok, re.IGNORECASE):
-                            formula_prefix_tokens.append(tok)
-                        else:
-                            break
-                    formula_prefix = "".join(formula_prefix_tokens)
+                    raw_formula = ""
+                    if row_index < len(row_geometry):
+                        geometry = row_geometry[row_index]
+                        cells = geometry["cells"]
+                        if formula_idx < len(cells) and cells[formula_idx]:
+                            row_top, row_bottom = geometry["bbox"][1], geometry["bbox"][3]
+                            formula_left, _, formula_right, _ = cells[formula_idx]
+                            formula_words = [
+                                word for word in page_words
+                                if row_top <= (word["top"] + word["bottom"]) / 2 <= row_bottom
+                                and formula_left <= (word["x0"] + word["x1"]) / 2 <= formula_right
+                            ]
+                            formula_words.sort(key=lambda word: (word["top"], word["x0"]))
+                            raw_formula = cls._normalize_spaces(" ".join(word["text"] for word in formula_words))
 
-                    raw_formula = cls._normalize_spaces(formula_cell)
-                    if formula_prefix:
-                        raw_formula = formula_prefix + raw_formula
+                    if raw_formula:
+                        position_formula = cls._normalize_formula(raw_formula)
+                    else:
+                        # Retain the cell-text fallback when word geometry is unavailable.
+                        number_suffix = number_cell[number_match.end():]
+                        formula_prefix_tokens = []
+                        for tok in cls._normalize_spaces(number_suffix).split():
+                            if cls._is_service_token(tok):
+                                break
+                            if re.match(r"^[0-9]+[A-Za-zА-Яа-я]", tok) or re.match(r"^[A-Za-zА-Яа-я]+[xх]", tok, re.IGNORECASE):
+                                formula_prefix_tokens.append(tok)
+                            else:
+                                break
+                        raw_formula = "".join(formula_prefix_tokens) + cls._normalize_spaces(formula_cell)
+                        position_formula = re.sub(r"\s+", "", raw_formula)
+                        position_formula = re.sub(r"\(\d+\s*мм\)$", "", position_formula)
 
-                    position_formula = re.sub(r"\s+", "", raw_formula)
-                    position_formula = re.sub(r"\(\d+\s*мм\)$", "", position_formula)
+                    if not position_formula:
+                        continue
                     row_text = " ".join(str(cell or "") for cell in row)
 
                     item = {

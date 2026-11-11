@@ -162,6 +162,41 @@ KLV-Standart:Вх.Дверь:
     assert items[0]["is_oytside"] is True
 
 
+@pytest.mark.parametrize("formula", ["5М1xН14x4И", "6SolarxН14x4И"])
+def test_pdf_parser_keeps_word_crossing_formula_column_border(monkeypatch, formula):
+    text = "table with a formula crossing the column border"
+    monkeypatch.setattr(PDFParser, "_last_extracted_text", text)
+    monkeypatch.setattr(
+        PDFParser,
+        "_last_extracted_pages",
+        [{
+            "words": [{
+                "text": formula,
+                "x0": 195.0,
+                "x1": 280.0,
+                "top": 20.0,
+                "bottom": 30.0,
+            }],
+            "tables": [{
+                "rows": [
+                    ["Номер", "Формула", "Размер"],
+                    ["88-250-1674/2/17\n" + formula[0], formula[1:] + " (40 мм)", "575x1463"],
+                ],
+                "row_geometry": [
+                    {"bbox": (0, 0, 400, 15), "cells": [(0, 0, 200, 15), (200, 0, 350, 15), (350, 0, 400, 15)]},
+                    {"bbox": (0, 15, 400, 40), "cells": [(0, 15, 200, 40), (200, 15, 350, 40), (350, 15, 400, 40)]},
+                ],
+            }],
+        }],
+    )
+
+    items = PDFParser._parse_text_by_tables(text)
+
+    assert items is not None
+    assert len(items) == 1
+    assert items[0]["position_formula"] == formula
+
+
 def test_analyzer_parse_formula_does_not_split_on_vh_in_service_text():
     analyzer = Analyzer(session=None)
 
