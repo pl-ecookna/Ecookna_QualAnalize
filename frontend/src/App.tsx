@@ -477,7 +477,7 @@ export default function App() {
             </div>
 
             <div className="flex min-w-0 items-center justify-center self-center">
-              <h1 className="whitespace-nowrap text-center text-[1.8rem] font-semibold tracking-tight sm:text-[2.1rem] lg:text-[2.5rem]">
+              <h1 className="max-w-full text-balance text-center text-[1.8rem] font-semibold leading-tight tracking-tight sm:text-[2.1rem] lg:text-[2.5rem]">
                 Подбор формул и проверка заказов
               </h1>
             </div>
